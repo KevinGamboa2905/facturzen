@@ -46,11 +46,8 @@ export function Hero() {
             >
               <Link
                 href="#fonctionnalites"
-                className="mx-auto flex w-fit items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:text-foreground"
+                className="mx-auto inline-flex w-fit rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:text-foreground"
               >
-                <span className="inline-flex h-5 items-center rounded-full bg-primary px-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-primary-foreground">
-                  Nouveau
-                </span>
                 La facturation suisse qui avance à votre rythme
               </Link>
 
