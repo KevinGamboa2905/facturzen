@@ -29,23 +29,30 @@ const clientSchema = z.object({
 // message (undefined case); .min(1, msg) sets the empty-string case.
 const required = (msg: string) => z.string(msg).min(1, msg);
 
+// An optional var. Vercel (and our .env) often set unused vars to "" rather than
+// leaving them undefined — treat "" as absent so it doesn't fail .min(1).
+const optionalString = () =>
+  z.preprocess((v) => (v === "" ? undefined : v), z.string().min(1).optional());
+
 const serverSchema = z.object({
   // Required — the app cannot boot without these.
   DATABASE_URL: required("DATABASE_URL manquante — voir DEPLOY.md §1"),
   AUTH_SECRET: required(
     "AUTH_SECRET manquante — génère-la avec `npx auth secret` — voir DEPLOY.md §3",
   ),
-  AUTH_GOOGLE_ID: required("AUTH_GOOGLE_ID manquante — voir DEPLOY.md §4"),
-  AUTH_GOOGLE_SECRET: required("AUTH_GOOGLE_SECRET manquante — voir DEPLOY.md §4"),
   CRON_SECRET: required(
     "CRON_SECRET manquante — génère-la avec `openssl rand -hex 32` — voir DEPLOY.md §5",
   ),
 
   // Optional — absence degrades gracefully, never a 500 (see `flags`).
-  RESEND_API_KEY: z.string().min(1).optional(),
-  STRIPE_SECRET_KEY: z.string().min(1).optional(),
-  BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  // Google OAuth is optional AT DEPLOY: without both keys the app still ships,
+  // sign-in shows a "bientôt" state, and Google activates the day both arrive.
+  AUTH_GOOGLE_ID: optionalString(),
+  AUTH_GOOGLE_SECRET: optionalString(),
+  RESEND_API_KEY: optionalString(),
+  STRIPE_SECRET_KEY: optionalString(),
+  BLOB_READ_WRITE_TOKEN: optionalString(),
+  ANTHROPIC_API_KEY: optionalString(),
 });
 
 const isServer = typeof window === "undefined";
@@ -100,10 +107,24 @@ export const env = new Proxy({ ...(serverParsed ?? {}), ...clientEnv } as Env, {
   },
 });
 
+// Warn (don't fail) when Google is half-configured: one key without the other
+// would silently break sign-in, so make it loud but keep the app running.
+if (serverParsed) {
+  const hasId = Boolean(serverParsed.AUTH_GOOGLE_ID);
+  const hasSecret = Boolean(serverParsed.AUTH_GOOGLE_SECRET);
+  if (hasId !== hasSecret) {
+    console.warn(
+      `⚠️ ${hasId ? "AUTH_GOOGLE_ID définie mais AUTH_GOOGLE_SECRET manquante" : "AUTH_GOOGLE_SECRET définie mais AUTH_GOOGLE_ID manquante"} — la connexion Google reste désactivée (il faut les deux). Voir DEPLOY.md §4.`,
+    );
+  }
+}
+
 // --- Feature flags -----------------------------------------------------------
 // Derived from optional vars. Server-evaluated; pass to client components as
 // props when the UI needs them.
 export const flags = {
+  // Google sign-in needs BOTH keys; one alone stays disabled (warned above).
+  googleAuth: Boolean(serverParsed?.AUTH_GOOGLE_ID && serverParsed?.AUTH_GOOGLE_SECRET),
   email: Boolean(serverParsed?.RESEND_API_KEY), // Resend transactional emails
   stripe: Boolean(serverParsed?.STRIPE_SECRET_KEY), // paid subscriptions
   blob: Boolean(serverParsed?.BLOB_READ_WRITE_TOKEN), // Vercel Blob file storage

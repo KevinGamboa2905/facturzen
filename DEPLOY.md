@@ -15,10 +15,10 @@ base PostgreSQL, l'auth Google, les PDF et les crons.
 |---|---|---|
 | `DATABASE_URL` | ✅ | Vercel → Storage → Postgres (§1) |
 | `AUTH_SECRET` | ✅ | `npx auth secret` (§3) |
-| `AUTH_GOOGLE_ID` | ✅ | Google Cloud Console (§4) |
-| `AUTH_GOOGLE_SECRET` | ✅ | Google Cloud Console (§4) |
 | `NEXT_PUBLIC_APP_URL` | ✅ | l'URL de prod, ex. `https://facturzen.vercel.app` |
 | `CRON_SECRET` | ✅ | `openssl rand -hex 32` (§5) |
+| `AUTH_GOOGLE_ID` | ➖ | Google Cloud Console (§4) — sinon connexion « bientôt » |
+| `AUTH_GOOGLE_SECRET` | ➖ | Google Cloud Console (§4) — sinon connexion « bientôt » |
 | `RESEND_API_KEY` | ➖ | [resend.com/api-keys](https://resend.com/api-keys) — sinon emails loggés |
 | `STRIPE_SECRET_KEY` | ➖ | [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys) — sinon abonnement « bientôt » |
 | `BLOB_READ_WRITE_TOKEN` | ➖ | Vercel → Storage → Blob (§6) — sinon upload logo désactivé |
@@ -78,17 +78,29 @@ openssl rand -hex 32     # → CRON_SECRET
 ```
 
 Vercel → **Settings → Environment Variables** → ajoute chaque variable du tableau
-ci-dessus (au minimum les 6 requises) pour l'environnement **Production**
+ci-dessus (au minimum les **4 requises**) pour l'environnement **Production**
 (et **Preview** si tu veux tester les branches).
 
 - `NEXT_PUBLIC_APP_URL` = l'URL exacte de ton déploiement (ex.
   `https://facturzen.vercel.app`), **sans slash final**.
 - `AUTH_SECRET`, `CRON_SECRET` = les valeurs générées ci-dessus.
-- `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` = étape 4.
+- `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` = **optionnels** — voir étape 4. Sans
+  eux, l'app se déploie ; la connexion affiche « bientôt disponible ».
+
+> **Déploiement minimal** : `DATABASE_URL`, `AUTH_SECRET`, `NEXT_PUBLIC_APP_URL`,
+> `CRON_SECRET` suffisent. Google n'est **pas** requis pour mettre en ligne.
 
 ---
 
-## 4. Google Cloud Console (OAuth)
+## 4. Google Cloud Console (OAuth) — optionnel
+
+Google est **optionnel au déploiement** : saute cette étape si tu ne peux pas
+encore créer les identifiants — l'app tourne (landing + démo), la connexion
+s'affiche en « bientôt ». Reviens ici quand tu es prêt.
+
+> **✨ Activer la connexion Google** = ajouter les 2 variables `AUTH_GOOGLE_ID`
+> et `AUTH_GOOGLE_SECRET` (local `.env` et/ou Vercel) puis **redéployer**. Aucun
+> changement de code : le bouton Google réapparaît, l'état « bientôt » disparaît.
 
 1. [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
    → **Create Credentials → OAuth client ID → Web application**.
@@ -157,6 +169,10 @@ npm run db:seed               # charge le compte démo Léa (optionnel)
 npm run dev                   # http://localhost:3000
 ```
 
-Local aussi, `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` sont **requis** pour
-booter (Google est la seule voie de connexion). Utilitaires : `npm run db:studio`
-(explorateur de base), `npm run db:deploy` (migrations sans prompt).
+En local **sans** clés Google, `/connexion` propose un bouton **« Continuer en
+mode développement »** (badge DEV) qui ouvre l'app complète avec un utilisateur
+local `dev@facturzen.local` — pratique pour tester tout le parcours sans OAuth.
+Ce raccourci n'existe **qu'en développement** (jamais en production).
+
+Utilitaires : `npm run db:studio` (explorateur de base), `npm run db:deploy`
+(migrations sans prompt).

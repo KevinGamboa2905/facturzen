@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { flags } from "@/lib/env";
 import { ensureDemoWorkspace } from "@/lib/demo/session";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { SidebarNav, BottomNav } from "@/components/app/app-nav";
@@ -16,7 +17,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
   return (
     <ToastProvider>
     <div className="min-h-dvh bg-background text-foreground">
-      <DemoBanner />
+      <DemoBanner googleAuth={flags.googleAuth} />
       <div className="mx-auto flex w-full max-w-[1400px]">
         <aside className="sticky top-10 hidden h-[calc(100dvh-2.5rem)] w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
           <Link href="/demo" className="px-2" aria-label="FacturZen, tableau de bord">
