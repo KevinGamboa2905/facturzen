@@ -3,9 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 const DEMO_COOKIE = "fz_demo";
 
 // Mint an anonymous sandbox token for /demo visitors. Runs on the edge, so it
-// only touches cookies (no DB) — the workspace itself is materialized lazily in
-// a Server Component keyed by this token.
-export function middleware(request: NextRequest) {
+// only touches cookies (no DB — never import Prisma here) — the workspace itself
+// is materialized lazily in a Server Component keyed by this token.
+// Next 16 renamed Middleware → Proxy; the behaviour is identical.
+export function proxy(request: NextRequest) {
   const existing = request.cookies.get(DEMO_COOKIE)?.value;
   const token = existing ?? crypto.randomUUID();
 

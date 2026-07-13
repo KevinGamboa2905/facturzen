@@ -1,0 +1,29 @@
+# Local PostgreSQL for FacturZen development.
+# Start it with:  docker compose up -d
+# The matching DATABASE_URL is documented in .env.example.
+#
+# Prefer a hosted Postgres (Neon, Prisma Postgres, Supabase…)? Skip this file
+# entirely and just put that connection string in .env — the app doesn't care
+# where Postgres runs.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: facturzen-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: facturzen
+      POSTGRES_PASSWORD: facturzen
+      POSTGRES_DB: facturzen
+    ports:
+      - "5432:5432"
+    volumes:
+      - facturzen_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U facturzen -d facturzen"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  facturzen_pgdata:

@@ -1,15 +1,17 @@
 // FacturZen data model.
-// Dev: SQLite. Written to stay portable to PostgreSQL for prod (no SQLite-only
-// features; status/plan/currency stored as String since SQLite lacks enums —
-// allowed values are validated at the application layer with Zod).
-// Money is always stored in centimes (Int), never floats.
+// PostgreSQL everywhere (dev + prod) — one engine, no dev/prod drift.
+// status/plan/currency are stored as String (not native enums) so allowed
+// values are validated at the application layer with Zod and stay easy to
+// extend without a migration. Money is always stored in centimes (Int), never
+// floats; rates/quantities/percentages are Float; flags are Boolean; instants
+// are DateTime (timestamptz in Postgres). All types are Postgres-native.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
