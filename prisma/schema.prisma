@@ -1,0 +1,298 @@
+// FacturZen data model.
+// Dev: SQLite. Written to stay portable to PostgreSQL for prod (no SQLite-only
+// features; status/plan/currency stored as String since SQLite lacks enums —
+// allowed values are validated at the application layer with Zod).
+// Money is always stored in centimes (Int), never floats.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth.js (NextAuth v5) adapter models + application user profile
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+
+  // Company / invoicing profile (master §4)
+  companyName      String?
+  activityType     String? // Design & création | Conseil | Artisanat | Développement | Coaching | Autre
+  address          String?
+  city             String?
+  zip              String?
+  country          String  @default("CH")
+  canton           String?
+  iban             String? // QR-IBAN
+  vatEnabled       Boolean @default(false)
+  vatNumber        String?
+  logoUrl          String?
+  defaultCurrency  String  @default("CHF") // CHF | EUR
+  defaultVatRate   Float   @default(8.1)
+  paymentTermsDays Int     @default(30)
+  plan             String  @default("FREE") // FREE | PRO
+
+  // Onboarding / activation / demo (PROMPT 2 & 3)
+  onboardingCompletedAt DateTime?
+  checklistDismissedAt  DateTime?
+  isDemo                Boolean   @default(false)
+  demoToken             String?   @unique // cookie-bound sandbox key for /demo
+  demoExpiresAt         DateTime?
+  demoTourSeenAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Deposit preferences (PROMPT 4 §4)
+  defaultDepositPercent Int? // e.g. 30 → "Toujours proposer 30% d'acompte"
+
+  accounts Account[]
+  sessions Session[]
+  clients  Client[]
+  quotes   Quote[]
+  invoices Invoice[]
+  settings Settings?
+  services Service[]
+  packages ServicePackage[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Business domain (master §4)
+// ---------------------------------------------------------------------------
+
+model Client {
+  id      String  @id @default(cuid())
+  userId  String
+  name    String
+  email   String?
+  address String?
+  city    String?
+  zip     String?
+  country String  @default("CH")
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quotes   Quote[]
+  invoices Invoice[]
+
+  @@index([userId])
+}
+
+model Quote {
+  id            String    @id @default(cuid())
+  userId        String
+  clientId      String? // nullable while the draft has no client yet
+  number        String // DEV-2026-001
+  status        String    @default("DRAFT") // DRAFT | SENT | ACCEPTED | DECLINED | EXPIRED
+  issueDate     DateTime  @default(now())
+  validUntil    DateTime?
+  depositPercent Float?
+  signedAt      DateTime?
+  signatureName String?
+  convertedInvoiceId String? // set once converted → no double conversion (PROMPT 6)
+  publicToken   String    @unique @default(cuid())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?     @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  lineItems LineItem[]
+  invoices  Invoice[]
+
+  @@unique([userId, number])
+  @@index([userId])
+}
+
+model Invoice {
+  id          String    @id @default(cuid())
+  userId      String
+  clientId    String? // nullable while the draft has no client yet
+  quoteId     String?
+  number      String // FAC-2026-001
+  status      String    @default("DRAFT") // DRAFT | SENT | PAID | OVERDUE | CANCELLED
+  issueDate   DateTime  @default(now())
+  dueDate     DateTime
+  paidAt      DateTime?
+  currency    String    @default("CHF")
+  publicToken String    @unique @default(cuid())
+
+  // Amount actually collected in centimes (PROMPT 6): the displayed status is
+  // derived strictly from amountPaid vs. total — "Payée" only when fully paid.
+  amountPaid Int @default(0)
+
+  // Deposit invoicing (PROMPT 5 §2): a deposit invoice bills depositPercent of
+  // the mission total; the balance invoice links back via parentInvoiceId.
+  depositPercent  Float?
+  parentInvoiceId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client?    @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  quote     Quote?     @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  parent    Invoice?   @relation("InvoiceDeposit", fields: [parentInvoiceId], references: [id], onDelete: SetNull)
+  balances  Invoice[]  @relation("InvoiceDeposit")
+  lineItems LineItem[]
+  reminders Reminder[]
+
+  @@unique([userId, number])
+  @@index([userId])
+}
+
+model LineItem {
+  id          String  @id @default(cuid())
+  quoteId     String?
+  invoiceId   String?
+  label       String
+  description String?
+  quantity    Float   @default(1)
+  unitPrice   Int // centimes
+  vatRate     Float   @default(8.1)
+  position    Int     @default(0)
+
+  quote   Quote?   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId])
+  @@index([invoiceId])
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  invoiceId   String
+  level       Int // 1 | 2 | 3
+  tone        String // FRIENDLY | FIRM | FORMAL
+  scheduledAt DateTime
+  sentAt      DateTime?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+// ---------------------------------------------------------------------------
+// Service catalogue (PROMPT 4 §1) — save time: enter a service once, reuse it.
+// ---------------------------------------------------------------------------
+
+model Service {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  category    String?
+  unitType    String   @default("FLAT") // HOUR | DAY | FLAT | UNIT | WORD | PAGE
+  unitPrice   Int // centimes
+  vatRate     Float    @default(8.1)
+  currency    String   @default("CHF")
+  isFavorite  Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  timesUsed   Int      @default(0)
+  position    Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  packageItems PackageItem[]
+
+  @@index([userId])
+}
+
+model ServicePackage {
+  id              String  @id @default(cuid())
+  userId          String
+  name            String
+  description     String?
+  discountPercent Float?
+  position        Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PackageItem[]
+
+  @@index([userId])
+}
+
+model PackageItem {
+  id        String @id @default(cuid())
+  packageId String
+  serviceId String
+  quantity  Float  @default(1)
+  position  Int    @default(0)
+
+  package ServicePackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  service Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([packageId])
+  @@index([serviceId])
+}
+
+model Settings {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  quotePrefix    String @default("DEV")
+  invoicePrefix  String @default("FAC")
+  paymentTermsDays Int  @default(30)
+
+  reminderDay1 Int @default(3) // J+3
+  reminderDay2 Int @default(10) // J+10
+  reminderDay3 Int @default(20) // J+20
+
+  reminderText1 String @default("")
+  reminderText2 String @default("")
+  reminderText3 String @default("")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

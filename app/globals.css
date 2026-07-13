@@ -1,26 +1,264 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/*
+ * FacturZen design tokens — single source of truth. Type: Figtree (sans, UI/body)
+ * + Playfair Display (serif, italic accent on key heading words).
+ * Brand: full dark — off-white (--foreground #f2f2f2) on near-black
+ * (--background #0d0d0d), gray for muted/borders. Buttons use an Apple
+ * "liquid glass" look (.btn-glass). Green / amber / red are semantic status.
+ */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans);
+  --font-serif: var(--font-serif);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.2);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.625rem; /* 10px base → buttons/inputs 8px (md), cards 12px (xl) */
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --background: #0d0d0d;
+  --foreground: #f2f2f2;
+
+  --card: #141414;
+  --card-foreground: #f2f2f2;
+
+  --popover: #161616;
+  --popover-foreground: #f2f2f2;
+
+  --primary: #f2f2f2;
+  --primary-foreground: #0d0d0d;
+
+  --secondary: #1c1c1c;
+  --secondary-foreground: #f2f2f2;
+
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1a1;
+
+  --accent: #1f1f1f;
+  --accent-foreground: #f2f2f2;
+
+  --info: #4c8dff;
+  --info-foreground: #ffffff;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  --success: #10b981;
+  --success-foreground: #05130d;
+
+  --warning: #f59e0b;
+  --warning-foreground: #1a1206;
+
+  --border: #262626;
+  --input: #262626;
+  --ring: #a3a3a3;
+
+  /* Charts: light-on-dark grayscale ramp, then semantic green/amber for status */
+  --chart-1: #f2f2f2;
+  --chart-2: #a3a3a3;
+  --chart-3: #666666;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+
+  --sidebar: #0d0d0d;
+  --sidebar-foreground: #f2f2f2;
+  --sidebar-primary: #f2f2f2;
+  --sidebar-primary-foreground: #0d0d0d;
+  --sidebar-accent: #1f1f1f;
+  --sidebar-accent-foreground: #f2f2f2;
+  --sidebar-border: #262626;
+  --sidebar-ring: #a3a3a3;
+}
+
+/*
+ * No dark theme in scope (§2: "beaucoup de blanc"). The app never toggles the
+ * `.dark` class, but we mirror the light tokens here so any stray dark utility
+ * degrades gracefully instead of rendering the default shadcn dark palette.
+ */
+.dark {
+  --background: #0d0d0d;
+  --foreground: #f2f2f2;
+  --card: #141414;
+  --card-foreground: #f2f2f2;
+  --popover: #161616;
+  --popover-foreground: #f2f2f2;
+  --primary: #f2f2f2;
+  --primary-foreground: #0d0d0d;
+  --secondary: #1c1c1c;
+  --secondary-foreground: #f2f2f2;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1a1;
+  --accent: #1f1f1f;
+  --accent-foreground: #f2f2f2;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --success: #10b981;
+  --success-foreground: #05130d;
+  --warning: #f59e0b;
+  --warning-foreground: #1a1206;
+  --border: #262626;
+  --input: #262626;
+  --ring: #a3a3a3;
+  --chart-1: #f2f2f2;
+  --chart-2: #a3a3a3;
+  --chart-3: #666666;
+  --chart-4: #10b981;
+  --chart-5: #f59e0b;
+  --sidebar: #0d0d0d;
+  --sidebar-foreground: #f2f2f2;
+  --sidebar-primary: #f2f2f2;
+  --sidebar-primary-foreground: #0d0d0d;
+  --sidebar-accent: #1f1f1f;
+  --sidebar-accent-foreground: #f2f2f2;
+  --sidebar-border: #262626;
+  --sidebar-ring: #a3a3a3;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    line-height: 1.6;
+    font-size: 16px;
+    text-rendering: optimizeLegibility;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Amounts, prices, timers: tabular figures to prevent layout shift (§2). */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 }
 
-body {
-  background: var(--background);
+/*
+ * Apple "liquid glass" buttons: frosted translucent surface with a top
+ * specular highlight, inset rim light and soft drop shadow. Unlayered so it
+ * wins over Tailwind's border/background utilities on the button base.
+ */
+.btn-glass {
+  position: relative;
+  background-color: rgba(255, 255, 255, 0.1);
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 46%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 1px 0 rgba(0, 0, 0, 0.35),
+    0 8px 24px -8px rgba(0, 0, 0, 0.65);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+.btn-glass:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.btn-glass-strong {
+  background-color: rgba(255, 255, 255, 0.18);
+}
+.btn-glass-strong:hover {
+  background-color: rgba(255, 255, 255, 0.26);
+}
+
+/* Optional animated backdrop (from the liquid-glass source). */
+@keyframes moveBackground {
+  from {
+    background-position: 0% 0%;
+  }
+  to {
+    background-position: 0% -1000%;
+  }
+}
+
+/* Accordion (FAQ) collapse animation, driven by Radix content height. */
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+@utility animate-accordion-down {
+  animation: accordion-down 200ms ease-out;
+}
+@utility animate-accordion-up {
+  animation: accordion-up 200ms ease-out;
+}
+
+/* Respect user motion preferences (§2). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Keep PDF engines out of the bundle so pdfkit can read its font metric files
+  // and swissqrbill can load its embedded fonts at runtime.
+  serverExternalPackages: ["pdfkit", "swissqrbill"],
+  async redirects() {
+    // Single sign-in route (§1); legacy paths funnel into it.
+    return [
+      { source: "/login", destination: "/connexion", permanent: true },
+      { source: "/signin", destination: "/connexion", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;
