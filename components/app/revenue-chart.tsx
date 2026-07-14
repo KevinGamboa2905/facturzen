@@ -60,8 +60,11 @@ export function RevenueChart({ data }: { data: Point[] }) {
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 640px)");
     const apply = () => setIsDesktop(mq.matches);
+    // Client-only viewport detection at mount — measuring, not a cascading render.
+    /* eslint-disable react-hooks/set-state-in-effect */
     apply();
     setMounted(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
     mq.addEventListener("change", apply);
     return () => mq.removeEventListener("change", apply);
   }, []);

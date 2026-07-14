@@ -34,16 +34,13 @@ export function DemoTour() {
     return () => clearTimeout(t);
   }, [pathname]);
 
-  // Measure the current anchor.
+  // Measure the current anchor (DOM read → must happen after paint).
   useEffect(() => {
     if (!active) return;
     const el = document.querySelector<HTMLElement>(`[data-tour="${STEPS[step].anchor}"]`);
-    if (!el) {
-      setRect(null);
-      return;
-    }
-    const r = el.getBoundingClientRect();
-    setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    const r = el?.getBoundingClientRect();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring the DOM
+    setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
   }, [active, step]);
 
   function finish() {

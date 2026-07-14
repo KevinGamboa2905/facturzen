@@ -31,6 +31,7 @@ export function ListToolbar({
 
   // Keep local input in sync when the URL changes externally (back/forward).
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing to the URL store
     setValue(urlQ);
   }, [urlQ]);
 
