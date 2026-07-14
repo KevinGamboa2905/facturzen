@@ -115,6 +115,8 @@ export const DEMO_USER = {
   defaultCurrency: "CHF" as const,
   defaultVatRate: VAT,
   paymentTermsDays: 30,
+  // The demo simulates a paid Indépendant account so nothing shows locked (§3).
+  plan: "INDEP" as const,
 };
 
 export const DEMO_CLIENTS: SeedClient[] = [

@@ -1,9 +1,27 @@
 import type { Settings, User } from "@prisma/client";
 
 import type { SettingsData } from "@/components/app/settings-view";
+import { normalizePlan, type PlanId } from "@/lib/plans";
 
-// Flatten the User row + optional Settings row into the settings form shape.
-export function buildSettingsData(user: User, settings: Settings | null): SettingsData {
+export type SettingsExtra = {
+  effectivePlan: PlanId;
+  trialDaysLeft: number | null;
+  trialExpired: boolean;
+  sentThisMonth: number;
+  invoiceLimit: number;
+  stripeConfigured: boolean;
+  stripeConnected: boolean;
+  stripeChargesEnabled: boolean;
+  stripeNeedsAttention: boolean;
+};
+
+// Flatten the User row + optional Settings row + computed plan/usage/Stripe state
+// into the settings form shape.
+export function buildSettingsData(
+  user: User,
+  settings: Settings | null,
+  extra: SettingsExtra,
+): SettingsData {
   return {
     companyName: user.companyName ?? "",
     address: user.address ?? "",
@@ -27,5 +45,9 @@ export function buildSettingsData(user: User, settings: Settings | null): Settin
     reminderText1: settings?.reminderText1 ?? "",
     reminderText2: settings?.reminderText2 ?? "",
     reminderText3: settings?.reminderText3 ?? "",
+    plan: normalizePlan(user.plan),
+    accountHolder: user.accountHolder ?? "",
+    showBankDetails: user.showBankDetails,
+    ...extra,
   };
 }

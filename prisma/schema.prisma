@@ -41,7 +41,23 @@ model User {
   defaultCurrency  String  @default("CHF") // CHF | EUR
   defaultVatRate   Float   @default(8.1)
   paymentTermsDays Int     @default(30)
-  plan             String  @default("FREE") // FREE | PRO
+
+  // Plans & billing (PROMPT 10). plan ∈ FREE | INDEP | STUDIO. Trials are
+  // internal (no card): trialEndsAt set for INDEP/STUDIO chosen at onboarding.
+  plan             String    @default("FREE")
+  planSelectedAt   DateTime?
+  billingCycleAnchor DateTime?
+  trialEndsAt      DateTime?
+  planBannerSeenAt DateTime? // existing users see the "choose a plan" nudge once
+
+  // Payments the user collects (PROMPT 10 §6).
+  accountHolder    String?  // bank account holder name (QR-facture creditor)
+  showBankDetails  Boolean  @default(true)
+  stripeAccountId  String?  // Stripe Connect (Express) — receive online payments
+
+  // Subscription billing (PROMPT 10 §4).
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
 
   // Onboarding / activation / demo (PROMPT 2 & 3)
   onboardingCompletedAt DateTime?
@@ -162,6 +178,7 @@ model Invoice {
   status      String    @default("DRAFT") // DRAFT | SENT | PAID | OVERDUE | CANCELLED
   issueDate   DateTime  @default(now())
   dueDate     DateTime
+  sentAt      DateTime? // first time it was sent — powers the monthly send quota
   paidAt      DateTime?
   currency    String    @default("CHF")
   publicToken String    @unique @default(cuid())

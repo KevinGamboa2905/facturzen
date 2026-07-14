@@ -7,15 +7,18 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass";
+import { PlanCards } from "@/components/app/plan-cards";
 import {
   ACTIVITY_TYPES,
   CANTONS,
   COUNTRIES,
   DEFAULT_CANTON,
 } from "@/lib/profile-options";
+import { normalizePlan, type PlanId } from "@/lib/plans";
 import {
   saveOnboardingProfile,
   saveOnboardingBilling,
+  saveOnboardingPlan,
   completeOnboarding,
 } from "@/app/actions/onboarding";
 
@@ -29,7 +32,10 @@ export type OnboardingInitial = {
   vatNumber: string;
   defaultVatRate: number;
   paymentTermsDays: number;
+  plan: string;
 };
+
+type Step = 1 | 2 | 3 | 4;
 
 const nativeSelect =
   "h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition-colors focus-visible:border-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring";
@@ -43,10 +49,10 @@ export function OnboardingWizard({
   initialStep,
 }: {
   initial: OnboardingInitial;
-  initialStep: 1 | 2 | 3;
+  initialStep: Step;
 }) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(initialStep);
+  const [step, setStep] = useState<Step>(initialStep);
   const [pending, start] = useTransition();
 
   // Step 1
@@ -61,6 +67,13 @@ export function OnboardingWizard({
   const [vatNumber, setVatNumber] = useState(initial.vatNumber);
   const [vatRate, setVatRate] = useState(String(initial.defaultVatRate || 8.1));
   const [terms, setTerms] = useState(String(initial.paymentTermsDays || 30));
+
+  // Step 3 — plan. Indépendant is pre-selected (recommended); a returning user
+  // who already picked a non-FREE plan keeps their choice.
+  const [plan, setPlan] = useState<PlanId>(() => {
+    const p = normalizePlan(initial.plan);
+    return p === "FREE" ? "INDEP" : p;
+  });
 
   const goStep1 = useCallback(() => {
     start(async () => {
@@ -82,6 +95,13 @@ export function OnboardingWizard({
     });
   }, [currency, vatEnabled, vatNumber, vatRate, terms]);
 
+  const goStep3 = useCallback(() => {
+    start(async () => {
+      await saveOnboardingPlan(plan);
+      setStep(4);
+    });
+  }, [plan]);
+
   const finish = useCallback(
     (href: string) => {
       start(async () => {
@@ -100,10 +120,10 @@ export function OnboardingWizard({
 
   return (
     <main className="flex min-h-dvh flex-col bg-background px-6 py-8 text-foreground">
-      <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
+      <div className={`mx-auto flex w-full flex-1 flex-col ${step === 3 ? "max-w-3xl" : "max-w-md"}`}>
         {/* Progress */}
-        <div className="flex items-center gap-2" aria-label={`Étape ${step} sur 3`}>
-          {[1, 2, 3].map((n) => (
+        <div className="flex items-center gap-2" aria-label={`Étape ${step} sur 4`}>
+          {[1, 2, 3, 4].map((n) => (
             <div
               key={n}
               className={`h-1.5 flex-1 rounded-full transition-colors ${
@@ -112,7 +132,7 @@ export function OnboardingWizard({
             />
           ))}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground tabular-nums">{step}/3</p>
+        <p className="mt-2 text-xs text-muted-foreground tabular-nums">{step}/4</p>
 
         <div className="flex flex-1 flex-col justify-center py-8">
           {step === 1 && (
@@ -296,6 +316,29 @@ export function OnboardingWizard({
           )}
 
           {step === 3 && (
+            <form onSubmit={onFormSubmit(goStep3)}>
+              <h1 className="text-2xl font-semibold tracking-tight">Choisissez votre plan</h1>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                Commencez gratuitement, ou testez tout pendant 14 jours.
+              </p>
+
+              <div className="mt-6">
+                <PlanCards selected={plan} onSelect={setPlan} />
+              </div>
+
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                Sans carte bancaire. Changez de plan à tout moment.
+              </p>
+
+              <LiquidGlassButton type="submit" disabled={pending} className="mt-5 h-12 w-full rounded-xl text-sm">
+                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                Continuer
+                {!pending && <ArrowRight className="size-4" />}
+              </LiquidGlassButton>
+            </form>
+          )}
+
+          {step === 4 && (
             <div className="text-center">
               <AnimatedCheck />
               <h1 className="mt-6 text-2xl font-semibold tracking-tight">C&apos;est prêt</h1>

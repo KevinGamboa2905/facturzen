@@ -27,6 +27,8 @@ export type PdfInput = {
   };
   client: { name: string; address?: string | null; zip?: string | null; city?: string | null; country?: string | null } | null;
   lineItems: { label: string; description?: string | null; quantity: number; unitPrice: number; vatRate: number }[];
+  // Studio plan can drop the "Propulsé par FacturZen" footer (PROMPT 10 §3).
+  removeBranding?: boolean;
 };
 
 const fmtDate = (d?: Date | null) => (d ? new Intl.DateTimeFormat("fr-CH").format(d) : "—");
@@ -192,10 +194,12 @@ export async function generateDocumentPdf(input: PdfInput): Promise<Buffer> {
   }
 
   // --- Footer ---
-  doc.font("Helvetica").fontSize(8).fillColor("#b8b8b8").text("Propulsé par FacturZen", M, doc.page.height - 70, {
-    width: contentW,
-    align: "center",
-  });
+  if (!input.removeBranding) {
+    doc.font("Helvetica").fontSize(8).fillColor("#b8b8b8").text("Propulsé par FacturZen", M, doc.page.height - 70, {
+      width: contentW,
+      align: "center",
+    });
+  }
 
   // --- Swiss QR-bill (CHF invoices with a valid IBAN) ---
   const iban = input.company.iban ?? "";

@@ -6,8 +6,42 @@ import { prisma } from "@/lib/prisma";
 import { getWorkspace } from "@/lib/workspace";
 import { addStarterServices } from "@/app/actions/services";
 import { DEFAULT_PAYMENT_TERMS, DEFAULT_VAT_RATE } from "@/lib/profile-options";
+import { normalizePlan } from "@/lib/plans";
 
 type Ok = { ok: boolean };
+
+const TRIAL_DAYS = 14;
+
+// Existing users (onboarded before the plan step) see the dashboard nudge once.
+export async function dismissPlanNudge(): Promise<Ok> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+  await prisma.user.update({
+    where: { id: ws.userId },
+    data: { planBannerSeenAt: new Date() },
+  });
+  revalidatePath("/app");
+  return { ok: true };
+}
+
+// Step 3 — plan choice. No card is taken: FREE starts as-is, INDEP/STUDIO start
+// a 14-day internal trial. Payment is configured later in Réglages → Abonnement.
+export async function saveOnboardingPlan(planId: string): Promise<Ok> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+  const id = normalizePlan(planId);
+  const now = new Date();
+  await prisma.user.update({
+    where: { id: ws.userId },
+    data: {
+      plan: id,
+      planSelectedAt: now,
+      billingCycleAnchor: now,
+      trialEndsAt: id === "FREE" ? null : new Date(now.getTime() + TRIAL_DAYS * 86_400_000),
+    },
+  });
+  return { ok: true };
+}
 
 // Step 1 — who's invoicing. Saved on "continuer" so closing the tab resumes here.
 export async function saveOnboardingProfile(input: {

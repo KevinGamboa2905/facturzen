@@ -15,6 +15,15 @@ import { formatAmount } from "@/lib/money";
 import { DisplayInvoiceBadge } from "@/components/app/status-badge";
 import { RevenueChart } from "@/components/app/revenue-chart";
 import { ActivationChecklist } from "@/components/app/activation-checklist";
+import { PlanUsageBar, ChoosePlanNudge } from "@/components/app/plan-usage";
+
+export type PlanUsage = {
+  isFree: boolean;
+  sentThisMonth: number;
+  invoiceLimit: number;
+  monthLabel: string;
+  showNudge: boolean;
+};
 
 function StatCard({
   label,
@@ -62,10 +71,12 @@ export function DashboardView({
   basePath,
   data,
   checklist,
+  planUsage,
 }: {
   basePath: string;
   data: WorkspaceData;
   checklist?: { items: ChecklistItem[]; done: number; total: number } | null;
+  planUsage?: PlanUsage | null;
 }) {
   const { invoices, quotes } = data;
   const d = computeDashboard(invoices, quotes);
@@ -85,9 +96,25 @@ export function DashboardView({
         </div>
       </header>
 
+      {planUsage?.showNudge && (
+        <div className="mt-6">
+          <ChoosePlanNudge />
+        </div>
+      )}
+
       {checklist && checklist.done < checklist.total && (
         <div className="mt-6">
           <ActivationChecklist items={checklist.items} done={checklist.done} total={checklist.total} />
+        </div>
+      )}
+
+      {planUsage?.isFree && planUsage.invoiceLimit !== Infinity && (
+        <div className="mt-6">
+          <PlanUsageBar
+            sentThisMonth={planUsage.sentThisMonth}
+            invoiceLimit={planUsage.invoiceLimit}
+            monthLabel={planUsage.monthLabel}
+          />
         </div>
       )}
 

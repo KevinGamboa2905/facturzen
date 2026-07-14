@@ -27,6 +27,7 @@ import {
 } from "@/app/actions/documents";
 import { ClientCreateModal } from "@/components/app/client-create-modal";
 import { DepositSelector, type DepositChoice } from "@/components/app/deposit-selector";
+import { useUpgrade } from "@/components/app/upgrade-modal";
 
 type ClientLite = { id: string; name: string; city: string | null; email: string | null };
 type ServiceLite = {
@@ -115,6 +116,7 @@ export function DocumentBuilder({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
+  const upgrade = useUpgrade();
   const [sendOpen, setSendOpen] = useState(false);
   const [emailBody, setEmailBody] = useState("");
   const [convertConfirm, setConvertConfirm] = useState(false);
@@ -247,6 +249,11 @@ export function DocumentBuilder({
       if (res.ok) {
         toast(`${isQuote ? "Devis envoyé" : "Facture envoyée"} à ${clientName} ✓`);
         router.refresh();
+      } else if ("reason" in res && res.reason === "LIMIT") {
+        // Draft is untouched — only the send is blocked; nudge to upgrade.
+        upgrade.open(
+          `Vous avez envoyé vos ${res.limit} factures gratuites de ${res.monthLabel}. Passez à Indépendant pour des factures illimitées.`,
+        );
       } else toast("L'envoi a échoué.", "error");
     });
   }

@@ -18,8 +18,9 @@ export default async function BienvenuePage() {
   // Already onboarded → never show the wizard again.
   if (user.onboardingCompletedAt) redirect("/app");
 
-  // Step 1 saves activityType; its presence means the user reached step 2.
-  const initialStep: 1 | 2 | 3 = user.activityType ? 2 : 1;
+  // Resume where the user left off: plan chosen → finish; activity saved →
+  // billing; otherwise the start.
+  const initialStep: 1 | 2 | 3 | 4 = user.planSelectedAt ? 4 : user.activityType ? 2 : 1;
 
   const initial: OnboardingInitial = {
     companyName: user.companyName ?? user.name ?? "",
@@ -31,6 +32,7 @@ export default async function BienvenuePage() {
     vatNumber: user.vatNumber ?? "",
     defaultVatRate: user.defaultVatRate ?? DEFAULT_VAT_RATE,
     paymentTermsDays: user.paymentTermsDays ?? DEFAULT_PAYMENT_TERMS,
+    plan: user.plan ?? "FREE",
   };
 
   return <OnboardingWizard initial={initial} initialStep={initialStep} />;

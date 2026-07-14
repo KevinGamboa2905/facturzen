@@ -146,6 +146,31 @@ Pour activer l'upload de logo en prod :
 
 ---
 
+## 6bis. Stripe — abonnements & paiement en ligne (optionnel)
+
+Sans `STRIPE_SECRET_KEY`, tout dégrade proprement : Réglages → Abonnement gère
+les plans/essais en interne, Réglages → Paiements propose le virement bancaire,
+et aucun bouton mort n'apparaît. Pour activer Stripe :
+
+1. **Clés** (Vercel → Env) : `STRIPE_SECRET_KEY`, puis pour les abonnements créez
+   deux prix récurrents (24 / 49 CHF) dans Stripe → Products et collez
+   `STRIPE_PRICE_INDEP` / `STRIPE_PRICE_STUDIO`.
+2. **Webhook** : Stripe → Developers → Webhooks → endpoint
+   `https://<domaine>/api/webhooks/stripe`, événements `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted` → copiez le
+   `whsec_...` dans `STRIPE_WEBHOOK_SECRET`.
+3. **Stripe Connect** (paiement des factures) : activez Connect (comptes Express)
+   dans le dashboard Stripe. Les utilisateurs connectent leur compte depuis
+   Réglages → Paiements ; leurs clients paient depuis `/f/[token]`.
+4. **Tester en local** :
+   ```bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   ```
+   copiez le `whsec_...` affiché dans `.env` (`STRIPE_WEBHOOK_SECRET`), puis payez
+   une facture de test avec la carte `4242 4242 4242 4242`.
+
+---
+
 ## 7. Redéployer et vérifier
 
 Après avoir collé les variables : Vercel → **Deployments → Redeploy** (ou push).

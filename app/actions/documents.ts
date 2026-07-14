@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getWorkspace } from "@/lib/workspace";
 import { computeTotals } from "@/lib/totals";
+import { canSendInvoice, limit } from "@/lib/plans";
+import { sentInvoicesThisMonth, monthLabel } from "@/lib/app/usage";
 
 export type DocKind = "FAC" | "DEV";
 
@@ -163,15 +165,46 @@ function revalidateLists() {
   }
 }
 
-// Simulated in demo (no real email), real Resend send later. Arms the document.
-export async function sendDocument(kind: DocKind, id: string): Promise<{ ok: boolean }> {
+export type SendResult =
+  | { ok: true }
+  | { ok: false }
+  | { ok: false; reason: "LIMIT"; sent: number; limit: number; monthLabel: string };
+
+// Arms the document. For invoices, the plan's monthly send quota is enforced here
+// (only the send is blocked at the limit — the draft is untouched and survives).
+export async function sendDocument(kind: DocKind, id: string): Promise<SendResult> {
   const ws = await getWorkspace();
   if (!ws) return { ok: false };
 
   if (kind === "FAC") {
-    const inv = await prisma.invoice.findUnique({ where: { id }, select: { userId: true } });
+    const inv = await prisma.invoice.findUnique({
+      where: { id },
+      select: { userId: true, sentAt: true },
+    });
     if (!inv || inv.userId !== ws.userId) return { ok: false };
-    await prisma.invoice.update({ where: { id }, data: { status: "SENT" } });
+
+    // Quota applies only the first time an invoice is sent.
+    if (!inv.sentAt) {
+      const user = await prisma.user.findUnique({
+        where: { id: ws.userId },
+        select: { plan: true, trialEndsAt: true, stripeSubscriptionId: true },
+      });
+      const sent = await sentInvoicesThisMonth(ws.userId);
+      if (user && !canSendInvoice(user, sent)) {
+        return {
+          ok: false,
+          reason: "LIMIT",
+          sent,
+          limit: limit(user, "invoicesPerMonth"),
+          monthLabel: monthLabel(),
+        };
+      }
+    }
+
+    await prisma.invoice.update({
+      where: { id },
+      data: { status: "SENT", sentAt: inv.sentAt ?? new Date() },
+    });
   } else {
     const q = await prisma.quote.findUnique({ where: { id }, select: { userId: true } });
     if (!q || q.userId !== ws.userId) return { ok: false };

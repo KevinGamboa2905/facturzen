@@ -15,11 +15,17 @@ import { z } from "zod";
 // bundle. NEXT_PUBLIC_* is the only class of variable that is safe on the client.
 const rawClient = {
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
 };
 
 const clientSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.url(
     "NEXT_PUBLIC_APP_URL doit être une URL absolue (ex. https://facturzen.vercel.app) — voir DEPLOY.md §3",
+  ),
+  // Optional (Stripe). "" is treated as absent.
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.preprocess(
+    (v) => (v === "" ? undefined : v),
+    z.string().optional(),
   ),
 });
 
@@ -51,6 +57,9 @@ const serverSchema = z.object({
   AUTH_GOOGLE_SECRET: optionalString(),
   RESEND_API_KEY: optionalString(),
   STRIPE_SECRET_KEY: optionalString(),
+  STRIPE_WEBHOOK_SECRET: optionalString(),
+  STRIPE_PRICE_INDEP: optionalString(),
+  STRIPE_PRICE_STUDIO: optionalString(),
   BLOB_READ_WRITE_TOKEN: optionalString(),
   ANTHROPIC_API_KEY: optionalString(),
 });

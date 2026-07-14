@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Loader2 } from "lucide-react";
+import { AlertTriangle, Banknote, CreditCard, Loader2 } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,8 +10,18 @@ import { Switch } from "@/components/ui/switch";
 import { LiquidGlassButton } from "@/components/ui/liquid-glass";
 import { useToast } from "@/components/ui/toast";
 import { LogoField } from "@/components/app/logo-field";
+import { LockOverlay } from "@/components/app/locked";
+import { PlanBadge } from "@/components/app/plan-badge";
+import { PlanCards } from "@/components/app/plan-cards";
 import { updateProfile, updateBilling, updateReminders } from "@/app/actions/settings";
+import { changePlan, createSubscriptionCheckout, createBillingPortal } from "@/app/actions/billing";
+import {
+  updatePaymentSettings,
+  connectStripe,
+  disconnectStripe,
+} from "@/app/actions/payments";
 import { CANTONS, COUNTRIES } from "@/lib/profile-options";
+import { PLANS, PLAN_ORDER, planName, type PlanId } from "@/lib/plans";
 
 export type SettingsData = {
   companyName: string;
@@ -36,12 +46,26 @@ export type SettingsData = {
   reminderText1: string;
   reminderText2: string;
   reminderText3: string;
+  // Plans & payments (PROMPT 10)
+  plan: PlanId; // stored plan
+  effectivePlan: PlanId;
+  trialDaysLeft: number | null;
+  trialExpired: boolean;
+  sentThisMonth: number;
+  invoiceLimit: number; // Infinity = unlimited
+  accountHolder: string;
+  showBankDetails: boolean;
+  stripeConfigured: boolean;
+  stripeConnected: boolean;
+  stripeChargesEnabled: boolean;
+  stripeNeedsAttention: boolean;
 };
 
 const TABS = [
   { id: "profil", label: "Profil" },
   { id: "facturation", label: "Facturation" },
   { id: "relances", label: "Relances" },
+  { id: "paiements", label: "Paiements" },
   { id: "abonnement", label: "Abonnement" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
@@ -50,8 +74,18 @@ const label = "mb-1.5 block text-sm font-medium";
 const nativeSelect =
   "h-10 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none transition-colors focus-visible:border-muted-foreground/50 focus-visible:ring-2 focus-visible:ring-ring";
 
-export function SettingsView({ initial, uploadsEnabled }: { initial: SettingsData; uploadsEnabled: boolean }) {
-  const [tab, setTab] = useState<TabId>("profil");
+export function SettingsView({
+  initial,
+  uploadsEnabled,
+  initialTab = "profil",
+}: {
+  initial: SettingsData;
+  uploadsEnabled: boolean;
+  initialTab?: TabId;
+}) {
+  const [tab, setTab] = useState<TabId>(initialTab);
+  const canBranding = PLANS[initial.effectivePlan].features.branding;
+  const canReminders = PLANS[initial.effectivePlan].features.reminders;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-5 py-8 sm:px-8">
@@ -76,10 +110,13 @@ export function SettingsView({ initial, uploadsEnabled }: { initial: SettingsDat
       </div>
 
       <div className="mt-5">
-        {tab === "profil" && <ProfileTab initial={initial} uploadsEnabled={uploadsEnabled} />}
+        {tab === "profil" && (
+          <ProfileTab initial={initial} uploadsEnabled={uploadsEnabled} canBranding={canBranding} />
+        )}
         {tab === "facturation" && <BillingTab initial={initial} />}
-        {tab === "relances" && <RemindersTab initial={initial} />}
-        {tab === "abonnement" && <SubscriptionTab />}
+        {tab === "relances" && <RemindersTab initial={initial} canReminders={canReminders} />}
+        {tab === "paiements" && <PaymentsTab initial={initial} />}
+        {tab === "abonnement" && <AbonnementTab initial={initial} />}
       </div>
     </div>
   );
@@ -103,7 +140,15 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
   );
 }
 
-function ProfileTab({ initial, uploadsEnabled }: { initial: SettingsData; uploadsEnabled: boolean }) {
+function ProfileTab({
+  initial,
+  uploadsEnabled,
+  canBranding,
+}: {
+  initial: SettingsData;
+  uploadsEnabled: boolean;
+  canBranding: boolean;
+}) {
   const { toast } = useToast();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -143,7 +188,16 @@ function ProfileTab({ initial, uploadsEnabled }: { initial: SettingsData; upload
   return (
     <form onSubmit={submit} className="space-y-4">
       <Card title="Identité">
-        <LogoField value={logoUrl} onChange={setLogoUrl} enabled={uploadsEnabled} />
+        {canBranding ? (
+          <LogoField value={logoUrl} onChange={setLogoUrl} enabled={uploadsEnabled} />
+        ) : (
+          <LockOverlay
+            feature="branding"
+            reason="Ajoutez votre logo sur vos documents avec le plan Indépendant."
+          >
+            <LogoField value={logoUrl} onChange={() => {}} enabled={false} />
+          </LockOverlay>
+        )}
         <div>
           <label htmlFor="s-name" className={label}>
             Nom de l&apos;entreprise
@@ -353,7 +407,7 @@ const REMINDER_HINTS = [
   "Relance formelle — dernier rappel avant recouvrement.",
 ];
 
-function RemindersTab({ initial }: { initial: SettingsData }) {
+function RemindersTab({ initial, canReminders }: { initial: SettingsData; canReminders: boolean }) {
   const { toast } = useToast();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -393,7 +447,7 @@ function RemindersTab({ initial }: { initial: SettingsData }) {
     });
   }
 
-  return (
+  const form = (
     <form onSubmit={submit} className="space-y-4">
       <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
         Variables disponibles : <code>{"{client}"}</code> <code>{"{numero}"}</code>{" "}
@@ -436,6 +490,18 @@ function RemindersTab({ initial }: { initial: SettingsData }) {
       </div>
     </form>
   );
+
+  if (!canReminders) {
+    return (
+      <LockOverlay
+        feature="reminders"
+        reason="Automatisez vos relances de paiement avec le plan Indépendant."
+      >
+        {form}
+      </LockOverlay>
+    );
+  }
+  return form;
 }
 
 function ReminderPreview({ text }: { text: string }) {
@@ -454,20 +520,244 @@ function ReminderPreview({ text }: { text: string }) {
   );
 }
 
-function SubscriptionTab() {
+function AbonnementTab({ initial }: { initial: SettingsData }) {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [target, setTarget] = useState<PlanId>(initial.effectivePlan);
+
+  const current = initial.effectivePlan;
+  const unlimited = initial.invoiceLimit === Infinity;
+
+  function apply() {
+    start(async () => {
+      // Paid plan with Stripe configured → Checkout; otherwise internal change.
+      if (target !== "FREE" && initial.stripeConfigured) {
+        const res = await createSubscriptionCheckout(target);
+        if (res.ok && res.url) {
+          window.location.href = res.url;
+          return;
+        }
+        // No price configured etc. → fall back to internal trial change.
+      }
+      const res = await changePlan(target);
+      if (res.ok) {
+        toast("Plan mis à jour ✓");
+        router.refresh();
+      } else toast("Impossible de changer de plan.");
+    });
+  }
+
+  function openPortal() {
+    start(async () => {
+      const res = await createBillingPortal();
+      if (res.ok && res.url) window.location.href = res.url;
+      else toast("Portail indisponible.");
+    });
+  }
+
   return (
-    <section className="rounded-xl border border-border bg-card p-5">
-      <div className="flex items-center gap-2">
-        <CreditCard className="size-4 text-muted-foreground" />
-        <h2 className="text-sm font-medium">Abonnement</h2>
-      </div>
-      <p className="mt-3 text-sm text-muted-foreground">
-        La gestion de l&apos;abonnement arrive bientôt. FacturZen reste entièrement utilisable en
-        attendant.
+    <div className="space-y-4">
+      <Card title="Votre plan">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-lg font-semibold">{planName(current)}</span>
+          <PlanBadge plan={current} trialDaysLeft={initial.trialDaysLeft} />
+        </div>
+        {initial.trialExpired && (
+          <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+            Votre essai est terminé — repassez à Indépendant quand vous voulez. Vos données sont
+            intactes.
+          </p>
+        )}
+        <p className="text-sm text-muted-foreground">
+          Factures envoyées ce mois : {" "}
+          <span className="font-medium text-foreground tabular-nums">
+            {initial.sentThisMonth}
+            {unlimited ? "" : ` / ${initial.invoiceLimit}`}
+          </span>
+          {unlimited ? " (illimité)" : ""}
+        </p>
+      </Card>
+
+      <Card title="Changer de plan">
+        <PlanCards selected={target} onSelect={setTarget} compact />
+        <p className="text-xs text-muted-foreground">
+          {PLAN_ORDER.indexOf(target) < PLAN_ORDER.indexOf(current)
+            ? "La rétrogradation prend effet à la fin du cycle en cours ; les fonctionnalités du plan supérieur seront alors verrouillées."
+            : target === current
+              ? "C'est votre plan actuel."
+              : "La mise à niveau est immédiate."}
+        </p>
+        {!initial.stripeConfigured && target !== "FREE" && (
+          <p className="text-xs text-muted-foreground">
+            Le paiement de l&apos;abonnement sera bientôt activé sur la plateforme — en attendant,
+            vous démarrez un essai.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          <LiquidGlassButton
+            onClick={apply}
+            disabled={pending || target === current}
+            className="h-10 rounded-xl px-5 text-sm"
+          >
+            {pending && <Loader2 className="size-4 animate-spin" />}
+            {target === "FREE" ? "Passer à Libre" : `Passer à ${planName(target)}`}
+          </LiquidGlassButton>
+          {initial.stripeConfigured && initial.effectivePlan !== "FREE" && (
+            <button
+              type="button"
+              onClick={openPortal}
+              disabled={pending}
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <CreditCard className="size-4" />
+              Gérer mon abonnement
+            </button>
+          )}
+        </div>
+      </Card>
+
+      <p className="text-xs text-muted-foreground">
+        Multi-utilisateurs et accès API arrivent bientôt sur le plan Studio.
       </p>
-      <span className="mt-4 inline-flex items-center rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
-        Bientôt disponible
-      </span>
-    </section>
+    </div>
+  );
+}
+
+function PaymentsTab({ initial }: { initial: SettingsData }) {
+  const { toast } = useToast();
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const [iban, setIban] = useState(initial.iban);
+  const [holder, setHolder] = useState(initial.accountHolder);
+  const [show, setShow] = useState(initial.showBankDetails);
+
+  const bankActive = show && iban.trim().length > 0;
+  const stripeActive = initial.stripeConnected && initial.stripeChargesEnabled;
+  const noMethod = !bankActive && !stripeActive;
+
+  function saveBank(e: React.FormEvent) {
+    e.preventDefault();
+    start(async () => {
+      const res = await updatePaymentSettings({ iban, accountHolder: holder, showBankDetails: show });
+      if (res.ok) {
+        toast("Enregistré ✓");
+        router.refresh();
+      } else toast(res.error ?? "Erreur");
+    });
+  }
+
+  function connect() {
+    start(async () => {
+      const res = await connectStripe();
+      if (res.ok && res.url) window.location.href = res.url;
+      else toast("Connexion Stripe indisponible.");
+    });
+  }
+
+  function disconnect() {
+    start(async () => {
+      await disconnectStripe();
+      toast("Compte Stripe déconnecté");
+      router.refresh();
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      {noMethod && (
+        <p className="flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+          Aucun moyen de paiement actif — vos clients ne sauront pas comment vous payer.
+        </p>
+      )}
+
+      <form onSubmit={saveBank}>
+        <Card title="Virement bancaire">
+          <div className="flex items-center gap-2 text-sm">
+            <Banknote className="size-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Affiché sur vos factures (PDF + page publique).</span>
+          </div>
+          <div>
+            <label htmlFor="p-iban" className={label}>
+              IBAN / QR-IBAN
+            </label>
+            <Input id="p-iban" value={iban} onChange={(e) => setIban(e.target.value)} className="h-10 tabular-nums" />
+          </div>
+          <div>
+            <label htmlFor="p-holder" className={label}>
+              Titulaire du compte
+            </label>
+            <Input id="p-holder" value={holder} onChange={(e) => setHolder(e.target.value)} className="h-10" />
+          </div>
+          <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+            <span className="text-sm font-medium">Afficher mes coordonnées bancaires sur les factures</span>
+            <Switch checked={show} onCheckedChange={setShow} />
+          </div>
+          <div className="flex justify-end">
+            <SaveButton pending={pending} />
+          </div>
+        </Card>
+      </form>
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2">
+          <CreditCard className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-medium">Paiement en ligne (Stripe)</h2>
+        </div>
+
+        {!initial.stripeConfigured ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            Le paiement en ligne n&apos;est pas encore activé sur la plateforme. Le virement bancaire
+            ci-dessus fonctionne dès maintenant.
+          </p>
+        ) : !PLANS[initial.effectivePlan].features.onlinePayment ? (
+          <div className="mt-3">
+            <LockOverlay feature="onlinePayment" reason="Encaissez vos factures en ligne avec le plan Indépendant.">
+              <p className="text-sm text-muted-foreground">
+                Connectez Stripe pour que vos clients paient par carte directement depuis la facture.
+              </p>
+            </LockOverlay>
+          </div>
+        ) : initial.stripeConnected ? (
+          <div className="mt-3 space-y-3">
+            <p className="text-sm">
+              {stripeActive ? (
+                <span className="inline-flex items-center gap-1.5 font-medium text-success">
+                  Connecté ✓ — paiements activés
+                </span>
+              ) : (
+                <span className="text-warning">Configuration à terminer.</span>
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {!stripeActive && (
+                <LiquidGlassButton onClick={connect} disabled={pending} className="h-10 rounded-xl px-4 text-sm">
+                  Terminer la configuration
+                </LiquidGlassButton>
+              )}
+              <button
+                type="button"
+                onClick={disconnect}
+                disabled={pending}
+                className="inline-flex h-10 items-center rounded-xl border border-border px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-destructive"
+              >
+                Déconnecter
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <p className="text-sm text-muted-foreground">
+              Connectez votre compte Stripe pour encaisser vos factures en ligne.
+            </p>
+            <LiquidGlassButton onClick={connect} disabled={pending} className="mt-3 h-10 rounded-xl px-4 text-sm">
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              Connecter Stripe
+            </LiquidGlassButton>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

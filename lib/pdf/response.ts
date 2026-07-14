@@ -5,6 +5,7 @@ import type { Prisma, User } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getWorkspace } from "@/lib/workspace";
 import { generateDocumentPdf } from "@/lib/pdf/document-pdf";
+import { can } from "@/lib/plans";
 
 type InvoiceFull = Prisma.InvoiceGetPayload<{ include: { lineItems: true; client: true } }>;
 type QuoteFull = Prisma.QuoteGetPayload<{ include: { lineItems: true; client: true } }>;
@@ -28,6 +29,7 @@ async function renderPdf(kind: "FAC" | "DEV", doc: DocFull, user: User): Promise
       iban: user.iban,
       vatNumber: user.vatNumber,
     },
+    removeBranding: can(user, "removeBranding"),
     client: doc.client
       ? {
           name: doc.client.name,
