@@ -1,12 +1,26 @@
-// Dashboard placeholder — the real stat cards, chart and activation checklist
-// land in §2c/§4. Reachable only for onboarded, signed-in users (see layout).
-export default function AppHomePage() {
-  return (
-    <main className="mx-auto w-full max-w-6xl px-6 py-16">
-      <h1 className="text-2xl font-semibold tracking-tight">Tableau de bord</h1>
-      <p className="mt-2 text-muted-foreground">
-        Bientôt : votre chiffre d&apos;affaires, vos devis et vos factures en un coup d&apos;œil.
-      </p>
-    </main>
+import { prisma } from "@/lib/prisma";
+import { getWorkspace, getWorkspaceData } from "@/lib/workspace";
+import { computeChecklist } from "@/lib/app/checklist";
+import { DashboardView } from "@/components/app/dashboard-view";
+
+export const dynamic = "force-dynamic";
+
+export default async function AppHomePage() {
+  const ws = await getWorkspace();
+  if (!ws) return null;
+
+  const [data, settings] = await Promise.all([
+    getWorkspaceData(ws.userId),
+    prisma.settings.findUnique({ where: { userId: ws.userId } }),
+  ]);
+  if (!data) return null;
+
+  const remindersCustomized = Boolean(
+    settings && (settings.reminderText1 || settings.reminderText2 || settings.reminderText3),
   );
+  const checklist = data.user.checklistDismissedAt
+    ? null
+    : computeChecklist("/app", data, remindersCustomized);
+
+  return <DashboardView basePath="/app" data={data} checklist={checklist} />;
 }

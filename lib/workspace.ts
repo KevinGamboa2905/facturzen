@@ -19,6 +19,37 @@ export async function getWorkspace(): Promise<Workspace | null> {
   return null;
 }
 
+// Full workspace dataset (user + clients + invoices + quotes with relations),
+// keyed only by userId — identical for the real app and the demo sandbox. The
+// single source both /app and /demo pages read, so their list/detail/dashboard
+// views can be one shared component fed the same shape.
+export async function getWorkspaceData(userId: string) {
+  const [user, clients, invoices, quotes] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId } }),
+    prisma.client.findMany({ where: { userId }, orderBy: { name: "asc" } }),
+    prisma.invoice.findMany({
+      where: { userId },
+      include: {
+        client: true,
+        lineItems: true,
+        reminders: { orderBy: { level: "asc" } },
+        balances: { select: { id: true } },
+      },
+      orderBy: { issueDate: "desc" },
+    }),
+    prisma.quote.findMany({
+      where: { userId },
+      include: { client: true, lineItems: true },
+      orderBy: { issueDate: "desc" },
+    }),
+  ]);
+
+  if (!user) return null;
+  return { user, clients, invoices, quotes };
+}
+
+export type WorkspaceData = NonNullable<Awaited<ReturnType<typeof getWorkspaceData>>>;
+
 export async function getServices(userId: string, includeArchived = false) {
   return prisma.service.findMany({
     where: { userId, ...(includeArchived ? {} : { isArchived: false }) },

@@ -6,7 +6,7 @@ import { SettingsView } from "@/components/app/settings-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function DemoSettingsPage() {
+export default async function AppSettingsPage() {
   const ws = await getWorkspace();
   if (!ws) return null;
   const [user, settings] = await Promise.all([

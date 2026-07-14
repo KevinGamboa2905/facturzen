@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import type { User } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
+import { getWorkspaceData } from "@/lib/workspace";
 import { createDemoWorkspace } from "@/lib/demo/create";
 
 export const DEMO_COOKIE = "fz_demo";
@@ -50,28 +51,8 @@ export async function ensureDemoWorkspace(): Promise<User | null> {
 
 export type DemoWorkspace = NonNullable<Awaited<ReturnType<typeof getDemoData>>>;
 
-// Full sandbox dataset for the dashboard and list pages.
+// Full sandbox dataset for the dashboard and list pages — same shape and query
+// as the real app (see getWorkspaceData); the demo is just another workspace.
 export async function getDemoData(userId: string) {
-  const [user, clients, invoices, quotes] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId } }),
-    prisma.client.findMany({ where: { userId }, orderBy: { name: "asc" } }),
-    prisma.invoice.findMany({
-      where: { userId },
-      include: {
-        client: true,
-        lineItems: true,
-        reminders: { orderBy: { level: "asc" } },
-        balances: { select: { id: true } },
-      },
-      orderBy: { issueDate: "desc" },
-    }),
-    prisma.quote.findMany({
-      where: { userId },
-      include: { client: true, lineItems: true },
-      orderBy: { issueDate: "desc" },
-    }),
-  ]);
-
-  if (!user) return null;
-  return { user, clients, invoices, quotes };
+  return getWorkspaceData(userId);
 }

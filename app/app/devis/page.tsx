@@ -3,7 +3,7 @@ import { QuotesView } from "@/components/app/quotes-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function DemoQuotesPage({
+export default async function AppQuotesPage({
   searchParams,
 }: {
   searchParams: Promise<{ statut?: string }>;
@@ -14,5 +14,5 @@ export default async function DemoQuotesPage({
   const data = await getWorkspaceData(ws.userId);
   if (!data) return null;
 
-  return <QuotesView basePath="/demo" quotes={data.quotes} invoices={data.invoices} statut={statut} />;
+  return <QuotesView basePath="/app" quotes={data.quotes} invoices={data.invoices} statut={statut} />;
 }

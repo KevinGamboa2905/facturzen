@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getWorkspace, getServices } from "@/lib/workspace";
 import { DocumentBuilder } from "@/components/app/document-builder";
+import { IbanJustInTime } from "@/components/app/iban-just-in-time";
 import type { DocKind } from "@/app/actions/documents";
 
 export async function BuilderPage({ kind, id }: { kind: DocKind; id: string }) {
@@ -12,7 +13,7 @@ export async function BuilderPage({ kind, id }: { kind: DocKind; id: string }) {
   const [user, clientRows, serviceRows] = await Promise.all([
     prisma.user.findUnique({
       where: { id: ws.userId },
-      select: { companyName: true, city: true, defaultCurrency: true },
+      select: { companyName: true, city: true, defaultCurrency: true, iban: true },
     }),
     prisma.client.findMany({
       where: { userId: ws.userId },
@@ -29,9 +30,14 @@ export async function BuilderPage({ kind, id }: { kind: DocKind; id: string }) {
   if (!doc || doc.userId !== ws.userId) notFound();
 
   const currency = kind === "FAC" ? (doc as { currency: string }).currency : user?.defaultCurrency ?? "CHF";
+  // Just-in-time nudge (§2b): a CHF invoice can't produce a QR-facture without a
+  // QR-IBAN — prompt for it exactly when it first becomes relevant, not before.
+  const needsIban = kind === "FAC" && currency === "CHF" && !user?.iban;
 
   return (
-    <DocumentBuilder
+    <>
+      {needsIban && <IbanJustInTime />}
+      <DocumentBuilder
       kind={kind}
       docId={doc.id}
       number={doc.number}
@@ -64,6 +70,7 @@ export async function BuilderPage({ kind, id }: { kind: DocKind; id: string }) {
           vatRate: li.vatRate,
         })),
       }}
-    />
+      />
+    </>
   );
 }

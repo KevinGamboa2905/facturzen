@@ -1,18 +1,18 @@
 import { getWorkspace, getWorkspaceData } from "@/lib/workspace";
-import { QuotesView } from "@/components/app/quotes-view";
+import { InvoicesView } from "@/components/app/invoices-view";
 
 export const dynamic = "force-dynamic";
 
-export default async function DemoQuotesPage({
+export default async function AppInvoicesPage({
   searchParams,
 }: {
   searchParams: Promise<{ statut?: string }>;
 }) {
-  const { statut } = await searchParams;
+  const { statut = "all" } = await searchParams;
   const ws = await getWorkspace();
   if (!ws) return null;
   const data = await getWorkspaceData(ws.userId);
   if (!data) return null;
 
-  return <QuotesView basePath="/demo" quotes={data.quotes} invoices={data.invoices} statut={statut} />;
+  return <InvoicesView basePath="/app" invoices={data.invoices} statut={statut} />;
 }
