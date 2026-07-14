@@ -6,13 +6,15 @@ export const dynamic = "force-dynamic";
 export default async function DemoQuotesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ statut?: string }>;
+  searchParams: Promise<{ statut?: string; q?: string; sort?: string }>;
 }) {
-  const { statut } = await searchParams;
+  const { statut, q = "", sort = "date" } = await searchParams;
   const ws = await getWorkspace();
   if (!ws) return null;
   const data = await getWorkspaceData(ws.userId);
   if (!data) return null;
 
-  return <QuotesView basePath="/demo" quotes={data.quotes} invoices={data.invoices} statut={statut} />;
+  return (
+    <QuotesView basePath="/demo" quotes={data.quotes} invoices={data.invoices} statut={statut} q={q} sort={sort} />
+  );
 }

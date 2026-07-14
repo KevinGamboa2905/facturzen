@@ -8,6 +8,7 @@ import { formatAmount, formatAmountPlain } from "@/lib/money";
 import { DisplayInvoiceBadge } from "@/components/app/status-badge";
 import { NewDocumentButton } from "@/components/app/new-document-button";
 import { FacturerSoldeButton } from "@/components/app/facturer-solde-button";
+import { ListToolbar, NoResults, type SortOption } from "@/components/app/list-toolbar";
 
 const FILTERS: { value: string; label: string; keys?: string[] }[] = [
   { value: "all", label: "Toutes" },
@@ -17,19 +18,30 @@ const FILTERS: { value: string; label: string; keys?: string[] }[] = [
   { value: "overdue", label: "En retard", keys: ["OVERDUE"] },
 ];
 
+const SORTS: SortOption[] = [
+  { value: "date", label: "Date" },
+  { value: "amount", label: "Montant" },
+  { value: "status", label: "Statut" },
+];
+
 // Shared invoices list for /app and /demo — only basePath and the data differ.
 export function InvoicesView({
   basePath,
   invoices,
   statut = "all",
+  q = "",
+  sort = "date",
 }: {
   basePath: string;
   invoices: WorkspaceData["invoices"];
   statut?: string;
+  q?: string;
+  sort?: string;
 }) {
   const active = FILTERS.find((f) => f.value === statut) ?? FILTERS[0];
+  const query = q.trim().toLowerCase();
 
-  const rows = invoices.map((inv) => {
+  let rows = invoices.map((inv) => {
     const total = computeTotals(inv.lineItems).ttc;
     const ds = getInvoiceDisplayStatus({
       status: inv.status,
@@ -41,7 +53,21 @@ export function InvoicesView({
     });
     return { inv, total, ds };
   });
-  const visible = active.keys ? rows.filter((r) => active.keys!.includes(r.ds.key)) : rows;
+  if (active.keys) rows = rows.filter((r) => active.keys!.includes(r.ds.key));
+  if (query) {
+    rows = rows.filter(
+      (r) =>
+        r.inv.number.toLowerCase().includes(query) ||
+        (r.inv.client?.name ?? "").toLowerCase().includes(query) ||
+        r.inv.lineItems.some((li) => li.label.toLowerCase().includes(query)),
+    );
+  }
+  rows.sort((a, b) => {
+    if (sort === "amount") return b.total - a.total;
+    if (sort === "status") return a.ds.key.localeCompare(b.ds.key);
+    return b.inv.issueDate.getTime() - a.inv.issueDate.getTime();
+  });
+  const visible = rows;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -50,7 +76,13 @@ export function InvoicesView({
         <NewDocumentButton kind="FAC" basePath={basePath} label="Nouvelle facture" />
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      {invoices.length > 0 && (
+        <div className="mt-5">
+          <ListToolbar sortOptions={SORTS} placeholder="Rechercher (n°, client, prestation)…" defaultSort="date" />
+        </div>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Link
             key={f.value}
@@ -69,6 +101,8 @@ export function InvoicesView({
 
       {invoices.length === 0 ? (
         <EmptyInvoices basePath={basePath} />
+      ) : visible.length === 0 && query ? (
+        <NoResults query={q.trim()} />
       ) : (
         <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
           <ul className="divide-y divide-border">

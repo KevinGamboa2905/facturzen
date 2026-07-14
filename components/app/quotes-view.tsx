@@ -7,7 +7,14 @@ import { formatAmount } from "@/lib/money";
 import { QuoteStatusBadge } from "@/components/app/status-badge";
 import { NewDocumentButton } from "@/components/app/new-document-button";
 import { ConvertQuoteButton } from "@/components/app/convert-quote-button";
+import { ListToolbar, NoResults, type SortOption } from "@/components/app/list-toolbar";
 import type { QuoteStatus } from "@/lib/status";
+
+const SORTS: SortOption[] = [
+  { value: "date", label: "Date" },
+  { value: "amount", label: "Montant" },
+  { value: "status", label: "Statut" },
+];
 
 // Shared quotes list for /app and /demo.
 export function QuotesView({
@@ -15,17 +22,35 @@ export function QuotesView({
   quotes,
   invoices,
   statut,
+  q = "",
+  sort = "date",
 }: {
   basePath: string;
   quotes: WorkspaceData["quotes"];
   invoices: WorkspaceData["invoices"];
   statut?: string;
+  q?: string;
+  sort?: string;
 }) {
   const invoiceNumberById = new Map(invoices.map((i) => [i.id, i.number]));
+  const query = q.trim().toLowerCase();
   let list = quotes;
   if (statut === "accepted") {
     list = list.filter((q) => q.status === "ACCEPTED" && !q.convertedInvoiceId);
   }
+  if (query) {
+    list = list.filter(
+      (qt) =>
+        qt.number.toLowerCase().includes(query) ||
+        (qt.client?.name ?? "").toLowerCase().includes(query) ||
+        qt.lineItems.some((li) => li.label.toLowerCase().includes(query)),
+    );
+  }
+  list = [...list].sort((a, b) => {
+    if (sort === "amount") return computeTotals(b.lineItems).ttc - computeTotals(a.lineItems).ttc;
+    if (sort === "status") return a.status.localeCompare(b.status);
+    return b.issueDate.getTime() - a.issueDate.getTime();
+  });
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -36,6 +61,12 @@ export function QuotesView({
       <p className="mt-1 text-sm text-muted-foreground">
         Un devis accepté devient une facture en un clic.
       </p>
+
+      {quotes.length > 0 && (
+        <div className="mt-4">
+          <ListToolbar sortOptions={SORTS} placeholder="Rechercher (n°, client, prestation)…" defaultSort="date" />
+        </div>
+      )}
 
       {quotes.length === 0 ? (
         <div className="mt-5 flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
@@ -50,6 +81,8 @@ export function QuotesView({
             <NewDocumentButton kind="DEV" basePath={basePath} label="Créer un devis" />
           </div>
         </div>
+      ) : list.length === 0 && query ? (
+        <NoResults query={q.trim()} />
       ) : (
         <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
           <ul className="divide-y divide-border">
