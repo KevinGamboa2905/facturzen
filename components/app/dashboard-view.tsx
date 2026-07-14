@@ -32,6 +32,7 @@ function StatCard({
   href,
   icon: Icon,
   tone = "default",
+  tourId,
 }: {
   label: string;
   value: string;
@@ -39,6 +40,7 @@ function StatCard({
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   tone?: "default" | "warning" | "danger";
+  tourId?: string;
 }) {
   const accent =
     tone === "danger" ? "text-destructive" : tone === "warning" ? "text-warning" : "text-muted-foreground";
@@ -46,6 +48,7 @@ function StatCard({
     <Link
       href={href}
       prefetch
+      data-tour={tourId}
       className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-colors hover:border-muted-foreground/40"
     >
       <div className="flex items-center justify-between">
@@ -119,7 +122,11 @@ export function DashboardView({
       )}
 
       {/* Stat cards */}
-      <section aria-label="Chiffres clés" className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <section
+        aria-label="Chiffres clés"
+        data-tour="stats"
+        className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard
           label="Encaissé cette année"
           value={formatAmount(d.paidChf)}
@@ -140,6 +147,7 @@ export function DashboardView({
           href={`${basePath}/factures?statut=overdue`}
           icon={TriangleAlert}
           tone="danger"
+          tourId="overdue"
         />
         <StatCard
           label="Devis à convertir"
@@ -147,6 +155,7 @@ export function DashboardView({
           sub="Accepté, prêt à facturer"
           href={`${basePath}/devis?statut=accepted`}
           icon={FileSignature}
+          tourId="quote"
         />
       </section>
 

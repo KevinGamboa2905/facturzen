@@ -3,6 +3,7 @@ import Link from "next/link";
 import { flags } from "@/lib/env";
 import { ensureDemoWorkspace } from "@/lib/demo/session";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { DemoTour } from "@/components/demo/demo-tour";
 import { NavGuard } from "@/components/app/nav-guard";
 import { CommandPalette } from "@/components/app/command-palette";
 import { CommandHint } from "@/components/app/command-hint";
@@ -43,6 +44,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
       </div>
 
       <BottomNav basePath="/demo" />
+      <DemoTour />
     </div>
     </ToastProvider>
   );

@@ -29,6 +29,17 @@ export function ClientDetailView({
     .filter((i) => i.currency === "CHF")
     .reduce((sum, i) => sum + invoiceTotalTtc(i), 0);
 
+  // Average payment delay (§7): mean days between issue and payment, over paid
+  // invoices. Hidden under 2 paid invoices (not enough signal).
+  const paid = clientInvoices.filter((i) => i.status === "PAID" && i.paidAt);
+  const avgDelay =
+    paid.length >= 2
+      ? Math.round(
+          paid.reduce((sum, i) => sum + (i.paidAt!.getTime() - i.issueDate.getTime()) / 86_400_000, 0) /
+            paid.length,
+        )
+      : null;
+
   return (
     <div className="mx-auto w-full max-w-4xl px-5 py-8 sm:px-8">
       <Link
@@ -73,9 +84,18 @@ export function ClientDetailView({
         />
       </div>
 
-      <div className="mt-6 rounded-xl border border-border bg-card p-5">
-        <p className="text-xs text-muted-foreground">Total facturé (CHF)</p>
-        <p className="mt-1 text-2xl font-semibold tabular-nums">{formatAmount(totalChf)}</p>
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-xs text-muted-foreground">Total facturé (CHF)</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{formatAmount(totalChf)}</p>
+        </div>
+        {avgDelay != null && (
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-xs text-muted-foreground">Habitude de paiement</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">Paie à J+{avgDelay}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">en moyenne, sur {paid.length} factures payées</p>
+          </div>
+        )}
       </div>
 
       <Section title="Factures" empty="Aucune facture pour ce client.">

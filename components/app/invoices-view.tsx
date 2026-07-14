@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 
 import type { WorkspaceData } from "@/lib/workspace";
-import { computeTotals } from "@/lib/totals";
-import { getInvoiceDisplayStatus } from "@/lib/app/invoice-status";
+import { buildInvoiceRows } from "@/lib/app/invoice-list";
 import { formatAmount, formatAmountPlain } from "@/lib/money";
 import { DisplayInvoiceBadge } from "@/components/app/status-badge";
 import { NewDocumentButton } from "@/components/app/new-document-button";
@@ -40,40 +39,30 @@ export function InvoicesView({
 }) {
   const active = FILTERS.find((f) => f.value === statut) ?? FILTERS[0];
   const query = q.trim().toLowerCase();
+  const visible = buildInvoiceRows(invoices, { statut, q, sort });
 
-  let rows = invoices.map((inv) => {
-    const total = computeTotals(inv.lineItems).ttc;
-    const ds = getInvoiceDisplayStatus({
-      status: inv.status,
-      amountPaid: inv.amountPaid,
-      total,
-      depositPercent: inv.depositPercent,
-      dueDate: inv.dueDate,
-      hasBalanceInvoice: inv.balances.length > 0,
-    });
-    return { inv, total, ds };
-  });
-  if (active.keys) rows = rows.filter((r) => active.keys!.includes(r.ds.key));
-  if (query) {
-    rows = rows.filter(
-      (r) =>
-        r.inv.number.toLowerCase().includes(query) ||
-        (r.inv.client?.name ?? "").toLowerCase().includes(query) ||
-        r.inv.lineItems.some((li) => li.label.toLowerCase().includes(query)),
-    );
-  }
-  rows.sort((a, b) => {
-    if (sort === "amount") return b.total - a.total;
-    if (sort === "status") return a.ds.key.localeCompare(b.ds.key);
-    return b.inv.issueDate.getTime() - a.inv.issueDate.getTime();
-  });
-  const visible = rows;
+  const exportParams = new URLSearchParams();
+  if (statut && statut !== "all") exportParams.set("statut", statut);
+  if (q) exportParams.set("q", q);
+  if (sort) exportParams.set("sort", sort);
+  const exportHref = `/api/export/factures${exportParams.toString() ? `?${exportParams}` : ""}`;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight">Factures</h1>
-        <NewDocumentButton kind="FAC" basePath={basePath} label="Nouvelle facture" />
+        <div className="flex items-center gap-2">
+          {invoices.length > 0 && (
+            <a
+              href={exportHref}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              <Download className="size-4" />
+              Exporter
+            </a>
+          )}
+          <NewDocumentButton kind="FAC" basePath={basePath} label="Nouvelle facture" />
+        </div>
       </div>
 
       {invoices.length > 0 && (
@@ -106,7 +95,8 @@ export function InvoicesView({
       ) : (
         <div className="mt-5 overflow-hidden rounded-xl border border-border bg-card">
           <ul className="divide-y divide-border">
-            {visible.map(({ inv, total, ds }) => {
+            {visible.map(({ inv, totals, ds }) => {
+              const total = totals.ttc;
               const cur = inv.currency as "CHF" | "EUR";
               const partial = ds.key === "DEPOSIT_PAID" || ds.key === "DEPOSIT_PAID_BALANCE";
               const showSolde = ds.key === "DEPOSIT_PAID";
