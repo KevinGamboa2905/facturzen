@@ -4,6 +4,8 @@ import { flags } from "@/lib/env";
 import { ensureDemoWorkspace } from "@/lib/demo/session";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { NavGuard } from "@/components/app/nav-guard";
+import { CommandPalette } from "@/components/app/command-palette";
+import { CommandHint } from "@/components/app/command-hint";
 import { SidebarNav, BottomNav } from "@/components/app/app-nav";
 import { Logo } from "@/components/marketing/logo";
 import { ToastProvider } from "@/components/ui/toast";
@@ -18,6 +20,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
   return (
     <ToastProvider>
     <NavGuard />
+    <CommandPalette basePath="/demo" />
     <div className="min-h-dvh bg-background text-foreground">
       <DemoBanner googleAuth={flags.googleAuth} />
       <div className="mx-auto flex w-full max-w-[1400px]">
@@ -27,6 +30,9 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
           </Link>
           <div className="mt-8">
             <SidebarNav basePath="/demo" />
+          </div>
+          <div className="mt-3">
+            <CommandHint />
           </div>
           <div className="mt-auto px-3 text-xs text-muted-foreground">
             Espace de démonstration

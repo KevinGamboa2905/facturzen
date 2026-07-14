@@ -9,6 +9,8 @@ import { Logo } from "@/components/marketing/logo";
 import { UpgradeProvider } from "@/components/app/upgrade-modal";
 import { UserMenu, type MenuUser } from "@/components/app/user-menu";
 import { NavGuard } from "@/components/app/nav-guard";
+import { CommandPalette } from "@/components/app/command-palette";
+import { CommandHint } from "@/components/app/command-hint";
 
 // Auth + onboarding gate for the whole app shell (server runtime → Prisma OK).
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -40,6 +42,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <UpgradeProvider>
       <NavGuard />
+      <CommandPalette basePath="/app" />
       <div className="min-h-dvh bg-background text-foreground">
         {/* Mobile header with account access */}
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur md:hidden">
@@ -58,6 +61,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </Link>
             <div className="mt-8">
               <SidebarNav basePath="/app" />
+            </div>
+            <div className="mt-3">
+              <CommandHint />
             </div>
             <div className="mt-auto border-t border-border pt-3">
               <UserMenu user={menuUser} />
