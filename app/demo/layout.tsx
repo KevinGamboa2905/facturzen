@@ -3,6 +3,7 @@ import Link from "next/link";
 import { flags } from "@/lib/env";
 import { ensureDemoWorkspace } from "@/lib/demo/session";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { NavGuard } from "@/components/app/nav-guard";
 import { SidebarNav, BottomNav } from "@/components/app/app-nav";
 import { Logo } from "@/components/marketing/logo";
 import { ToastProvider } from "@/components/ui/toast";
@@ -16,6 +17,7 @@ export default async function DemoLayout({ children }: { children: React.ReactNo
 
   return (
     <ToastProvider>
+    <NavGuard />
     <div className="min-h-dvh bg-background text-foreground">
       <DemoBanner googleAuth={flags.googleAuth} />
       <div className="mx-auto flex w-full max-w-[1400px]">

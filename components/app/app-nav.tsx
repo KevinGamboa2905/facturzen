@@ -63,12 +63,15 @@ export function SidebarNav({ basePath }: { basePath: string }) {
 
 export function BottomNav({ basePath }: { basePath: string }) {
   const isActive = useActive(basePath);
+  // Mobile shows 5 entries (§3): Prestations is reachable from Réglages / the
+  // builder, so it's dropped here to keep labels legible.
+  const items = NAV_ITEMS.filter((i) => i.href !== "/prestations");
   return (
     <nav
       aria-label="Navigation"
       className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-border bg-card/95 backdrop-blur md:hidden"
     >
-      {NAV_ITEMS.map((item) => {
+      {items.map((item) => {
         const active = isActive(item.href);
         return (
           <Link
