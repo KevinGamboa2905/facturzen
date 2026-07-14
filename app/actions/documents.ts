@@ -5,8 +5,15 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getWorkspace } from "@/lib/workspace";
 import { computeTotals } from "@/lib/totals";
+import { formatAmount } from "@/lib/money";
 import { canSendInvoice, limit } from "@/lib/plans";
 import { sentInvoicesThisMonth, monthLabel } from "@/lib/app/usage";
+import {
+  recordEvent,
+  sendEmailCopy,
+  reminderEmailCopy,
+  TONE_BY_LEVEL,
+} from "@/lib/app/events";
 
 export type DocKind = "FAC" | "DEV";
 
@@ -72,6 +79,7 @@ export async function createDraftInvoice(): Promise<{ ok: boolean; id?: string }
           currency: user?.defaultCurrency ?? "CHF",
         },
       });
+      await recordEvent({ invoiceId: invoice.id }, "CREATED");
       return { ok: true, id: invoice.id };
     } catch {
       // number collision — retry with the next sequence
@@ -103,6 +111,7 @@ export async function createDraftQuote(): Promise<{ ok: boolean; id?: string }> 
           depositPercent: user?.defaultDepositPercent ?? null,
         },
       });
+      await recordEvent({ quoteId: quote.id }, "CREATED");
       return { ok: true, id: quote.id };
     } catch {
       // retry
@@ -122,9 +131,12 @@ export async function saveDocument(
 
   const owner =
     kind === "FAC"
-      ? await prisma.invoice.findUnique({ where: { id }, select: { userId: true } })
-      : await prisma.quote.findUnique({ where: { id }, select: { userId: true } });
+      ? await prisma.invoice.findUnique({ where: { id }, select: { userId: true, status: true } })
+      : await prisma.quote.findUnique({ where: { id }, select: { userId: true, status: true } });
   if (!owner || owner.userId !== ws.userId) return { ok: false, error: "Introuvable." };
+  // Immutability (§1): only a DRAFT can be edited — a sent document is locked to
+  // preserve numbering integrity. Enforced server-side, not just in the UI.
+  if (owner.status !== "DRAFT") return { ok: false, error: "Document déjà envoyé — non modifiable." };
 
   const fk = kind === "FAC" ? { invoiceId: id } : { quoteId: id };
   const items = payload.lineItems
@@ -205,13 +217,41 @@ export async function sendDocument(kind: DocKind, id: string): Promise<SendResul
       where: { id },
       data: { status: "SENT", sentAt: inv.sentAt ?? new Date() },
     });
+    await recordSendEvent("FAC", id);
   } else {
     const q = await prisma.quote.findUnique({ where: { id }, select: { userId: true } });
     if (!q || q.userId !== ws.userId) return { ok: false };
     await prisma.quote.update({ where: { id }, data: { status: "SENT" } });
+    await recordSendEvent("DEV", id);
   }
   revalidateLists();
   return { ok: true };
+}
+
+// Record a SENT timeline event with the email copy as expedited.
+async function recordSendEvent(kind: DocKind, id: string): Promise<void> {
+  const doc =
+    kind === "FAC"
+      ? await prisma.invoice.findUnique({
+          where: { id },
+          include: { client: true, lineItems: true, user: { select: { companyName: true } } },
+        })
+      : await prisma.quote.findUnique({
+          where: { id },
+          include: { client: true, lineItems: true, user: { select: { companyName: true, defaultCurrency: true } } },
+        });
+  if (!doc) return;
+  const currency = (kind === "FAC"
+    ? (doc as { currency: string }).currency
+    : (doc as { user: { defaultCurrency: string } }).user.defaultCurrency) as "CHF" | "EUR";
+  const copy = sendEmailCopy({
+    kind,
+    clientName: doc.client?.name ?? "Client",
+    number: doc.number,
+    company: doc.user.companyName ?? "FacturZen",
+    amount: formatAmount(computeTotals(doc.lineItems).ttc, currency),
+  });
+  await recordEvent(kind === "FAC" ? { invoiceId: id } : { quoteId: id }, "SENT", copy);
 }
 
 function invoiceTtc(lineItems: { quantity: number; unitPrice: number; vatRate: number }[]): number {
@@ -228,6 +268,7 @@ export async function markDepositPaid(id: string): Promise<{ ok: boolean; deposi
   const total = invoiceTtc(inv.lineItems);
   const deposit = inv.depositPercent ? Math.round((total * inv.depositPercent) / 100) : total;
   await prisma.invoice.update({ where: { id }, data: { amountPaid: deposit, paidAt: new Date() } });
+  await recordEvent({ invoiceId: id }, "DEPOSIT_PAID", { amount: deposit });
   revalidateLists();
   return { ok: true, deposit, remaining: total - deposit };
 }
@@ -242,6 +283,7 @@ export async function markFullyPaid(id: string): Promise<{ ok: boolean }> {
 
   const total = invoiceTtc(inv.lineItems);
   await prisma.invoice.update({ where: { id }, data: { amountPaid: total, status: "PAID", paidAt: new Date() } });
+  await recordEvent({ invoiceId: id }, "PAID");
 
   if (inv.parentInvoiceId) {
     const parent = await prisma.invoice.findUnique({ where: { id: inv.parentInvoiceId }, include: { lineItems: true } });
@@ -297,6 +339,12 @@ export async function convertQuoteToInvoice(quoteId: string): Promise<{ ok: bool
           },
         },
       });
+      await recordEvent({ invoiceId: invoice.id }, "CREATED");
+      await recordEvent(
+        { quoteId: quote.id },
+        "CONVERTED",
+        { invoiceId: invoice.id, invoiceNumber: invoice.number },
+      );
       revalidateLists();
       return { ok: true, id: invoice.id };
     } catch {
@@ -369,6 +417,145 @@ export async function createBalanceInvoice(depositInvoiceId: string): Promise<{ 
     }
   }
   return { ok: false };
+}
+
+// Turn off a scheduled (not-yet-sent) reminder from the timeline.
+export async function disableReminder(reminderId: string): Promise<{ ok: boolean }> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+  const reminder = await prisma.reminder.findUnique({
+    where: { id: reminderId },
+    select: { invoice: { select: { userId: true } } },
+  });
+  if (!reminder || reminder.invoice.userId !== ws.userId) return { ok: false };
+  await prisma.reminder.delete({ where: { id: reminderId } });
+  revalidateLists();
+  return { ok: true };
+}
+
+// Manual reminder from the detail view (§1/§2). Escalates by level based on how
+// many reminders were already sent; records the email as expedited.
+export async function remindNow(invoiceId: string): Promise<{ ok: boolean; level?: number }> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+  const inv = await prisma.invoice.findUnique({
+    where: { id: invoiceId },
+    include: { client: true, lineItems: true, user: { select: { companyName: true } } },
+  });
+  if (!inv || inv.userId !== ws.userId) return { ok: false };
+
+  const alreadySent = await prisma.documentEvent.count({
+    where: { invoiceId, type: "REMINDER_SENT" },
+  });
+  const level = Math.min(3, alreadySent + 1);
+  const copy = reminderEmailCopy({
+    clientName: inv.client?.name ?? "Client",
+    number: inv.number,
+    amount: formatAmount(computeTotals(inv.lineItems).ttc, inv.currency as "CHF" | "EUR"),
+    level,
+    company: inv.user.companyName ?? "FacturZen",
+  });
+  await recordEvent({ invoiceId }, "REMINDER_SENT", {
+    level,
+    tone: TONE_BY_LEVEL[level],
+    ...copy,
+  });
+  // Also stamp the matching Reminder row as sent, if one is scheduled.
+  const scheduled = await prisma.reminder.findFirst({
+    where: { invoiceId, level, sentAt: null },
+  });
+  if (scheduled) {
+    await prisma.reminder.update({ where: { id: scheduled.id }, data: { sentAt: new Date() } });
+  }
+  revalidateLists();
+  return { ok: true, level };
+}
+
+// "Refacturer" / duplicate: clone lines into a fresh DRAFT.
+export async function duplicateDocument(
+  kind: DocKind,
+  id: string,
+): Promise<{ ok: boolean; id?: string }> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+
+  const source =
+    kind === "FAC"
+      ? await prisma.invoice.findUnique({ where: { id }, include: { lineItems: { orderBy: { position: "asc" } } } })
+      : await prisma.quote.findUnique({ where: { id }, include: { lineItems: { orderBy: { position: "asc" } } } });
+  if (!source || source.userId !== ws.userId) return { ok: false };
+
+  const user = await prisma.user.findUnique({
+    where: { id: ws.userId },
+    select: { paymentTermsDays: true, defaultCurrency: true },
+  });
+  const now = new Date();
+  const lines = source.lineItems.map((li, i) => ({
+    label: li.label,
+    description: li.description,
+    quantity: li.quantity,
+    unitPrice: li.unitPrice,
+    vatRate: li.vatRate,
+    position: i,
+  }));
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (kind === "FAC") {
+        const due = new Date(now.getTime() + (user?.paymentTermsDays ?? 30) * 86_400_000);
+        const created = await prisma.invoice.create({
+          data: {
+            userId: ws.userId,
+            clientId: source.clientId,
+            number: await nextNumber(ws.userId, "FAC"),
+            status: "DRAFT",
+            issueDate: now,
+            dueDate: due,
+            currency: (source as { currency: string }).currency,
+            lineItems: { create: lines },
+          },
+        });
+        await recordEvent({ invoiceId: created.id }, "CREATED");
+        revalidateLists();
+        return { ok: true, id: created.id };
+      }
+      const created = await prisma.quote.create({
+        data: {
+          userId: ws.userId,
+          clientId: source.clientId,
+          number: await nextNumber(ws.userId, "DEV"),
+          status: "DRAFT",
+          issueDate: now,
+          validUntil: new Date(now.getTime() + 30 * 86_400_000),
+          lineItems: { create: lines },
+        },
+      });
+      await recordEvent({ quoteId: created.id }, "CREATED");
+      revalidateLists();
+      return { ok: true, id: created.id };
+    } catch {
+      // number collision — retry
+    }
+  }
+  return { ok: false };
+}
+
+// Cancel a sent document (§1) — with confirmation in the UI.
+export async function cancelDocument(kind: DocKind, id: string): Promise<{ ok: boolean }> {
+  const ws = await getWorkspace();
+  if (!ws) return { ok: false };
+  if (kind === "FAC") {
+    const inv = await prisma.invoice.findUnique({ where: { id }, select: { userId: true } });
+    if (!inv || inv.userId !== ws.userId) return { ok: false };
+    await prisma.invoice.update({ where: { id }, data: { status: "CANCELLED" } });
+  } else {
+    const q = await prisma.quote.findUnique({ where: { id }, select: { userId: true } });
+    if (!q || q.userId !== ws.userId) return { ok: false };
+    await prisma.quote.update({ where: { id }, data: { status: "DECLINED" } });
+  }
+  await recordEvent(kind === "FAC" ? { invoiceId: id } : { quoteId: id }, "CANCELLED");
+  revalidateLists();
+  return { ok: true };
 }
 
 // Catalogue learns from usage (§1): favourites bubble up.

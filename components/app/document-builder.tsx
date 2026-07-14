@@ -307,7 +307,7 @@ export function DocumentBuilder({
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">
-              {isQuote ? "Nouveau devis" : "Nouvelle facture"}
+              {isQuote ? "Modifier le devis" : "Modifier la facture"}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">{number}</p>
           </div>

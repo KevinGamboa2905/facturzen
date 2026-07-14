@@ -9,6 +9,8 @@
 import type { PrismaClient, User } from "@prisma/client";
 
 import { computeTotals } from "../totals";
+import { formatAmount } from "../money";
+import { sendEmailCopy, reminderEmailCopy } from "../app/event-types";
 import {
   DEMO_CLIENTS,
   DEMO_INVOICES,
@@ -142,7 +144,7 @@ export async function createDemoWorkspace(
     const amountPaid =
       inv.status === "PAID" ? total : inv.depositPercent && inv.paidOffset != null ? deposit : 0;
 
-    await db.invoice.create({
+    const created = await db.invoice.create({
       data: {
         userId: user.id,
         clientId: clientIdByKey[inv.clientKey],
@@ -153,6 +155,7 @@ export async function createDemoWorkspace(
         depositPercent: inv.depositPercent ?? null,
         amountPaid,
         issueDate: off(inv.issueOffset),
+        sentAt: off(inv.issueOffset), // all demo invoices are sent
         dueDate: off(inv.dueOffset),
         paidAt: inv.paidOffset != null ? off(inv.paidOffset) : null,
         lineItems: {
@@ -174,6 +177,54 @@ export async function createDemoWorkspace(
           })),
         },
       },
+    });
+
+    // Timeline events (§2): a complete story for sent/overdue/paid invoices, so
+    // the demo overdue invoice shows created → sent → viewed → relance 1 → 2 and
+    // a relance 3 still scheduled (dotted, via the not-yet-sent Reminder row).
+    const amount = formatAmount(total, inv.currency);
+    const events: {
+      type: string;
+      createdAt: Date;
+      payload?: { subject: string; body: string; level?: number; tone?: string };
+    }[] = [{ type: "CREATED", createdAt: off(inv.issueOffset) }];
+    events.push({
+      type: "SENT",
+      createdAt: off(inv.issueOffset),
+      payload: sendEmailCopy({
+        kind: "FAC",
+        clientName: DEMO_CLIENTS.find((c) => c.key === inv.clientKey)?.name ?? "Client",
+        number: inv.number,
+        company: DEMO_USER.companyName,
+        amount,
+      }),
+    });
+    if (inv.status === "OVERDUE") {
+      events.push({ type: "VIEWED", createdAt: off(inv.issueOffset + 1) });
+    }
+    for (const r of inv.reminders) {
+      if (r.sentOffset == null) continue;
+      events.push({
+        type: "REMINDER_SENT",
+        createdAt: off(r.sentOffset),
+        payload: {
+          level: r.level,
+          tone: r.tone,
+          ...reminderEmailCopy({
+            clientName: DEMO_CLIENTS.find((c) => c.key === inv.clientKey)?.name ?? "Client",
+            number: inv.number,
+            amount,
+            level: r.level,
+            company: DEMO_USER.companyName,
+          }),
+        },
+      });
+    }
+    if (inv.status === "PAID" && inv.paidOffset != null) {
+      events.push({ type: "PAID", createdAt: off(inv.paidOffset) });
+    }
+    await db.documentEvent.createMany({
+      data: events.map((e) => ({ invoiceId: created.id, type: e.type, payload: e.payload, createdAt: e.createdAt })),
     });
   }
 

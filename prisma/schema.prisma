@@ -164,6 +164,7 @@ model Quote {
   client    Client?     @relation(fields: [clientId], references: [id], onDelete: Restrict)
   lineItems LineItem[]
   invoices  Invoice[]
+  events    DocumentEvent[]
 
   @@unique([userId, number])
   @@index([userId])
@@ -202,6 +203,7 @@ model Invoice {
   balances  Invoice[]  @relation("InvoiceDeposit")
   lineItems LineItem[]
   reminders Reminder[]
+  events    DocumentEvent[]
 
   @@unique([userId, number])
   @@index([userId])
@@ -223,6 +225,23 @@ model LineItem {
 
   @@index([quoteId])
   @@index([invoiceId])
+}
+
+// Timeline events for a document (PROMPT 11 §2). One row per lifecycle moment;
+// `payload` carries type-specific detail (e.g. reminder tone, sent email copy).
+model DocumentEvent {
+  id        String   @id @default(cuid())
+  invoiceId String?
+  quoteId   String?
+  type      String // CREATED | SENT | VIEWED | REMINDER_SENT | DEPOSIT_PAID | PAID | CONVERTED | CANCELLED | BALANCE_INVOICED
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  quote   Quote?   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([quoteId])
 }
 
 model Reminder {

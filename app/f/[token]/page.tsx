@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { computeTotals } from "@/lib/totals";
 import { formatAmount } from "@/lib/money";
 import { can } from "@/lib/plans";
+import { recordViewOncePerDay } from "@/lib/app/events";
 import { PublicDocument } from "@/components/public/public-document";
 import { PayOnlineButton } from "@/components/public/pay-online-button";
 import { DisplayInvoiceBadge } from "@/components/app/status-badge";
@@ -21,6 +22,9 @@ export default async function PublicInvoicePage({ params }: { params: Promise<{ 
   });
   if (!inv) notFound();
   const u = inv.user;
+
+  // Record "vu par le client" — at most once per day per document (§2).
+  await recordViewOncePerDay({ invoiceId: inv.id });
 
   const total = computeTotals(inv.lineItems).ttc;
   const outstanding = total - inv.amountPaid;

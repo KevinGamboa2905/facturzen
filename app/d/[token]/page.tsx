@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Download, XCircle } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
+import { can } from "@/lib/plans";
+import { recordViewOncePerDay } from "@/lib/app/events";
 import { PublicDocument } from "@/components/public/public-document";
 import { QuoteActions } from "@/components/public/quote-actions";
 
@@ -19,6 +21,7 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
   });
   if (!quote) notFound();
   const u = quote.user;
+  await recordViewOncePerDay({ quoteId: quote.id });
   const canAct = ["SENT", "DRAFT", "EXPIRED"].includes(quote.status);
 
   return (
@@ -68,7 +71,9 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
           ) : null}
         </div>
 
-        <p className="mt-6 text-center text-xs text-neutral-400">Propulsé par FacturZen</p>
+        {!can(u, "removeBranding") && (
+          <p className="mt-6 text-center text-xs text-neutral-400">Propulsé par FacturZen</p>
+        )}
       </div>
     </div>
   );
