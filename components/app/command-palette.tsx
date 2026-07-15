@@ -90,7 +90,12 @@ export function CommandPalette({ basePath }: { basePath: string }) {
   ];
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Recherche & commandes">
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      title="Recherche & commandes"
+      description="Tapez pour rechercher un document, un client ou une action"
+    >
       <Command shouldFilter={false}>
         <CommandInput value={query} onValueChange={setQuery} placeholder="Rechercher un document, un client, ou naviguer…" />
         <CommandList>
