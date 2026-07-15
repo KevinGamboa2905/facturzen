@@ -3,8 +3,11 @@
   "configurations": [
     {
       "name": "facturzen-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "DATABASE_URL=\"postgresql://neondb_owner:npg_n75sQpatWLej@ep-ancient-frost-as1nv9eh-pooler.c-4.eu-central-1.aws.neon.tech/neondb?channel_binding=require&sslmode=require\" npm run dev"
+      ],
       "port": 3000
     }
   ]

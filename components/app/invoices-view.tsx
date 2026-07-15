@@ -3,6 +3,7 @@ import { Download, FileText } from "lucide-react";
 
 import type { WorkspaceData } from "@/lib/workspace";
 import { buildInvoiceRows } from "@/lib/app/invoice-list";
+import { getInvoiceActions } from "@/lib/app/invoice-actions";
 import { formatAmount, formatAmountPlain } from "@/lib/money";
 import { DisplayInvoiceBadge } from "@/components/app/status-badge";
 import { NewDocumentButton } from "@/components/app/new-document-button";
@@ -98,8 +99,17 @@ export function InvoicesView({
             {visible.map(({ inv, totals, ds }) => {
               const total = totals.ttc;
               const cur = inv.currency as "CHF" | "EUR";
-              const partial = ds.key === "DEPOSIT_PAID" || ds.key === "DEPOSIT_PAID_BALANCE";
-              const showSolde = ds.key === "DEPOSIT_PAID";
+              // Same action rules as the detail view — overdue included (§1).
+              const A = getInvoiceActions({
+                status: inv.status,
+                amountPaid: inv.amountPaid,
+                total,
+                depositPercent: inv.depositPercent,
+                dueDate: inv.dueDate,
+                hasBalanceInvoice: inv.balances.length > 0,
+              });
+              const partial = A.partial;
+              const showSolde = A.canInvoiceBalance;
               return (
                 <li key={inv.id} className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-muted/40">
                   <Link href={`${basePath}/factures/${inv.id}`} prefetch className="flex min-w-0 flex-1 items-center gap-3">

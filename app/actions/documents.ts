@@ -284,6 +284,9 @@ export async function markFullyPaid(id: string): Promise<{ ok: boolean }> {
   const total = invoiceTtc(inv.lineItems);
   await prisma.invoice.update({ where: { id }, data: { amountPaid: total, status: "PAID", paidAt: new Date() } });
   await recordEvent({ invoiceId: id }, "PAID");
+  // Paid → no more chasing: drop any still-scheduled reminders (§1). The timeline
+  // derives "prévue" rows from unsent reminders, so they simply disappear.
+  await prisma.reminder.deleteMany({ where: { invoiceId: id, sentAt: null } });
 
   if (inv.parentInvoiceId) {
     const parent = await prisma.invoice.findUnique({ where: { id: inv.parentInvoiceId }, include: { lineItems: true } });
@@ -292,6 +295,7 @@ export async function markFullyPaid(id: string): Promise<{ ok: boolean }> {
         where: { id: parent.id },
         data: { amountPaid: invoiceTtc(parent.lineItems), status: "PAID", paidAt: new Date() },
       });
+      await prisma.reminder.deleteMany({ where: { invoiceId: parent.id, sentAt: null } });
     }
   }
   revalidateLists();

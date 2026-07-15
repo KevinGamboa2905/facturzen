@@ -11,6 +11,7 @@ import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast";
 import { DisplayInvoiceBadge, QuoteStatusBadge } from "@/components/app/status-badge";
 import { DocumentTimeline, type TimelineEvent, type ScheduledReminder } from "@/components/app/document-timeline";
+import { getInvoiceActions } from "@/lib/app/invoice-actions";
 import type { QuoteStatus } from "@/lib/status";
 import {
   markFullyPaid,
@@ -56,9 +57,16 @@ export function DocumentDetailView({
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const isInvoice = doc.kind === "FAC";
-  const paid = doc.total > 0 && doc.amountPaid >= doc.total;
-  const partial = doc.amountPaid > 0 && doc.amountPaid < doc.total;
-  const overdue = !paid && doc.dueDate != null && new Date(doc.dueDate).getTime() < Date.now();
+  // Single source of truth for invoice action availability (§1).
+  const A = getInvoiceActions({
+    status: doc.status,
+    amountPaid: doc.amountPaid,
+    total: doc.total,
+    depositPercent: doc.depositPercent,
+    dueDate: doc.dueDate,
+    hasBalanceInvoice: doc.hasBalanceInvoice,
+  });
+  const paid = A.paid;
   const pdfBase = isInvoice ? "facture" : "devis";
   const pdfHref = `/api/pdf/${pdfBase}/${doc.id}`;
 
@@ -124,7 +132,8 @@ export function DocumentDetailView({
 
       {/* Actions */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        {isInvoice && !paid && overdue && (
+        {/* Overdue → recovery-first: Relancer primary, Marquer payée next to it. */}
+        {isInvoice && A.canRemind && (
           <LiquidGlassButton
             disabled={pending}
             onClick={() => run(() => remindNow(doc.id), "Relance envoyée ✓")}
@@ -134,28 +143,54 @@ export function DocumentDetailView({
             Relancer maintenant
           </LiquidGlassButton>
         )}
-        {isInvoice && !paid && !overdue && partial && doc.depositPercent && !doc.hasBalanceInvoice && (
-          <LiquidGlassButton
-            disabled={pending}
-            onClick={() =>
-              run(() => createBalanceInvoice(doc.id), "Facture de solde créée ✓", (id) =>
-                id ? router.push(`${basePath}/factures/${id}`) : router.refresh(),
-              )
-            }
-            className="h-10 rounded-xl px-4 text-sm"
-          >
-            Facturer le solde
-          </LiquidGlassButton>
-        )}
-        {isInvoice && !paid && !overdue && !partial && (
-          <LiquidGlassButton
-            disabled={pending}
-            onClick={() => run(() => markFullyPaid(doc.id), "Facture marquée payée ✓")}
-            className="h-10 rounded-xl px-4 text-sm"
-          >
-            Marquer payée
-          </LiquidGlassButton>
-        )}
+        {isInvoice &&
+          A.canInvoiceBalance &&
+          (A.primary === "balance" ? (
+            <LiquidGlassButton
+              disabled={pending}
+              onClick={() =>
+                run(() => createBalanceInvoice(doc.id), "Facture de solde créée ✓", (id) =>
+                  id ? router.push(`${basePath}/factures/${id}`) : router.refresh(),
+                )
+              }
+              className="h-10 rounded-xl px-4 text-sm"
+            >
+              Facturer le solde
+            </LiquidGlassButton>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() =>
+                run(() => createBalanceInvoice(doc.id), "Facture de solde créée ✓", (id) =>
+                  id ? router.push(`${basePath}/factures/${id}`) : router.refresh(),
+                )
+              }
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              Facturer le solde
+            </button>
+          ))}
+        {isInvoice &&
+          A.canMarkPaid &&
+          (A.primary === "markPaid" ? (
+            <LiquidGlassButton
+              disabled={pending}
+              onClick={() => run(() => markFullyPaid(doc.id), "Facture marquée payée ✓")}
+              className="h-10 rounded-xl px-4 text-sm"
+            >
+              {A.markPaidLabel}
+            </LiquidGlassButton>
+          ) : (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => run(() => markFullyPaid(doc.id), "Facture marquée payée ✓")}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-4 text-sm font-medium transition-colors hover:bg-muted"
+            >
+              {A.markPaidLabel}
+            </button>
+          ))}
 
         {/* Quote primary */}
         {!isInvoice && doc.status === "ACCEPTED" && !doc.convertedInvoiceId && (
@@ -181,7 +216,7 @@ export function DocumentDetailView({
         )}
 
         {/* Secondary actions */}
-        {isInvoice && !paid && partial === false && doc.depositPercent && (
+        {isInvoice && A.canMarkDepositPaid && (
           <button
             type="button"
             disabled={pending}
