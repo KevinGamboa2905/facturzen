@@ -78,6 +78,11 @@ export async function GET(request: Request) {
           : defaultCopy.body;
 
       const res = await dispatchReminder(inv.id, r.level, bodyText);
+      if (!res.ok) {
+        // Real send failed → leave it unsent so the next run retries.
+        errors++;
+        continue;
+      }
       await prisma.reminder.update({ where: { id: r.id }, data: { sentAt: new Date() } });
       await recordEvent({ invoiceId: inv.id }, "REMINDER_SENT", {
         level: r.level,
@@ -111,6 +116,10 @@ export async function GET(request: Request) {
       if (inv.amountPaid >= computeTotals(inv.lineItems).ttc) continue;
       try {
         const res = await dispatchDueSoon(inv.id);
+        if (!res.ok) {
+          errors++;
+          continue;
+        }
         await recordEvent({ invoiceId: inv.id }, "DUE_SOON", { simulated: res.simulated });
         dueSoon++;
       } catch {
