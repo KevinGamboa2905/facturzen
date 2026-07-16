@@ -131,7 +131,7 @@ export async function createInvoiceCheckout(token: string): Promise<Result> {
         price_data: {
           currency: inv.currency.toLowerCase(),
           unit_amount: outstanding, // centimes = smallest unit for CHF/EUR
-          product_data: { name: `${inv.number} · ${owner.companyName ?? "FacturZen"}` },
+          product_data: { name: `${inv.number} · ${owner.companyName ?? "Facty"}` },
         },
         quantity: 1,
       },

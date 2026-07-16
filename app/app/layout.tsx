@@ -46,7 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="min-h-dvh bg-background text-foreground">
         {/* Mobile header with account access */}
         <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2.5 backdrop-blur md:hidden">
-          <Link href="/app" aria-label="FacturZen, tableau de bord">
+          <Link href="/app" aria-label="Facty, tableau de bord">
             <Logo />
           </Link>
           <div className="w-44">
@@ -56,7 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         <div className="mx-auto flex w-full max-w-[1400px]">
           <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border px-4 py-6 md:flex">
-            <Link href="/app" className="px-2" aria-label="FacturZen, tableau de bord">
+            <Link href="/app" className="px-2" aria-label="Facty, tableau de bord">
               <Logo />
             </Link>
             <div className="mt-8">

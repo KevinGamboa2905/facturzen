@@ -18,7 +18,7 @@ import { formatAmount } from "@/lib/money";
 
 export const metadata: Metadata = {
   title: "Design system",
-  description: "Démonstration des tokens FacturZen — couleurs, typographie, boutons, badges.",
+  description: "Démonstration des tokens Facty — couleurs, typographie, boutons, badges.",
 };
 
 const colorTokens: { name: string; token: string; hex: string; usage: string }[] = [
@@ -61,7 +61,7 @@ export default function StyleguidePage() {
   return (
     <main className="mx-auto w-full max-w-6xl px-6 py-16">
       <header className="mb-12">
-        <p className="mb-2 text-sm font-medium text-accent">FacturZen · Design system</p>
+        <p className="mb-2 text-sm font-medium text-accent">Facty · Design system</p>
         <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">
           Tokens &amp; composants
         </h1>

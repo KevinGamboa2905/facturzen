@@ -49,7 +49,7 @@ function layout(opts: {
         <tr><td style="padding:0 28px 8px">${opts.bodyHtml}${cta}</td></tr>
         <tr><td style="padding:0 28px 28px">
           ${opts.footerNote ? `<p style="margin:12px 0 0;font-size:12px;color:#94a3b8;line-height:1.5">${escape(opts.footerNote)}</p>` : ""}
-          <p style="margin:16px 0 0;font-size:11px;color:#cbd5e1">Envoyé via FacturZen pour le compte de ${escape(opts.brand.studio)}.</p>
+          <p style="margin:16px 0 0;font-size:11px;color:#cbd5e1">Envoyé via Facty pour le compte de ${escape(opts.brand.studio)}.</p>
         </td></tr>
       </table>
     </td></tr></table>
@@ -131,7 +131,7 @@ export function dueSoonEmail(opts: {
   };
 }
 
-// 4 · Quote accepted → the FacturZen user (freelancer).
+// 4 · Quote accepted → the Facty user (freelancer).
 export function quoteAcceptedEmail(opts: {
   brand: Brand;
   clientName: string;

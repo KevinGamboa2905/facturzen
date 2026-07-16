@@ -252,7 +252,7 @@ async function recordSendEvent(kind: DocKind, id: string): Promise<void> {
     kind,
     clientName: doc.client?.name ?? "Client",
     number: doc.number,
-    company: doc.user.companyName ?? "FacturZen",
+    company: doc.user.companyName ?? "Facty",
     amount: formatAmount(computeTotals(doc.lineItems).ttc, currency),
   });
   await recordEvent(kind === "FAC" ? { invoiceId: id } : { quoteId: id }, "SENT", copy);
@@ -463,7 +463,7 @@ export async function remindNow(invoiceId: string): Promise<{ ok: boolean; level
     number: inv.number,
     amount: formatAmount(computeTotals(inv.lineItems).ttc, inv.currency as "CHF" | "EUR"),
     level,
-    company: inv.user.companyName ?? "FacturZen",
+    company: inv.user.companyName ?? "Facty",
   });
   await recordEvent({ invoiceId }, "REMINDER_SENT", {
     level,

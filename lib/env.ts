@@ -150,7 +150,7 @@ export const isDevelopment = nodeEnv === "development";
 
 // Resend sender. Falls back to Resend's test sender so test mode works out of
 // the box (deliverable only to your own account's verified addresses).
-export const EMAIL_FROM = serverParsed?.EMAIL_FROM ?? "FacturZen <onboarding@resend.dev>";
+export const EMAIL_FROM = serverParsed?.EMAIL_FROM ?? "Facty <onboarding@resend.dev>";
 
 // Build an absolute URL from the configured app origin. Use this everywhere an
 // email, notification, or OG link needs a full URL — never hardcode a host.

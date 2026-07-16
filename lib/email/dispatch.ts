@@ -17,7 +17,7 @@ import {
 
 const noRecipient: SendResult = { ok: true, simulated: true };
 const brandOf = (u: { companyName: string | null; logoUrl: string | null }) => ({
-  studio: u.companyName || "FacturZen",
+  studio: u.companyName || "Facty",
   logoUrl: u.logoUrl,
   brandColor: null,
 });
@@ -66,7 +66,7 @@ export async function dispatchReminder(invoiceId: string, level: number, bodyTex
     number: inv.number,
     amount,
     level,
-    company: inv.user.companyName || "FacturZen",
+    company: inv.user.companyName || "Facty",
   }).subject;
   const content = reminderEmail({
     brand: brandOf(inv.user),

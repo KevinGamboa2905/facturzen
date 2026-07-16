@@ -9,8 +9,8 @@ import { Logo } from "@/components/marketing/logo";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 
 export const metadata: Metadata = {
-  title: "Connexion — FacturZen",
-  description: "Connectez-vous à FacturZen avec Google en 5 secondes.",
+  title: "Connexion — Facty",
+  description: "Connectez-vous à Facty avec Google en 5 secondes.",
   robots: { index: false, follow: false },
 };
 
@@ -46,7 +46,7 @@ export default async function ConnexionPage({
     <main className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-12 text-foreground">
       <div className="w-full max-w-sm">
         <div className="flex justify-center">
-          <Link href="/" aria-label="FacturZen, accueil">
+          <Link href="/" aria-label="Facty, accueil">
             <Logo />
           </Link>
         </div>

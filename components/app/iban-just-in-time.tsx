@@ -59,7 +59,7 @@ export function IbanJustInTime() {
           <QrCode className="size-5" />
         </span>
         <p className="text-sm text-muted-foreground">
-          Pour générer la QR-facture suisse de cette facture en CHF, FacturZen a besoin de votre
+          Pour générer la QR-facture suisse de cette facture en CHF, Facty a besoin de votre
           QR-IBAN. Ajoutez-le maintenant — une seule fois.
         </p>
       </div>

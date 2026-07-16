@@ -46,7 +46,7 @@ export function Footer() {
 
       <div className="border-t border-white/10">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-2 px-6 py-6 text-xs text-white/60 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} FacturZen · Genève, Suisse</p>
+          <p>© {new Date().getFullYear()} Facty · Genève, Suisse</p>
           <p>QR-facture conforme · TVA suisse · Données hébergées en Suisse</p>
         </div>
       </div>

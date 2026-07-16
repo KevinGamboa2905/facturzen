@@ -68,7 +68,7 @@ export async function GET(request: Request) {
         number: inv.number,
         amount,
         level: r.level,
-        company: inv.user.companyName ?? "FacturZen",
+        company: inv.user.companyName ?? "Facty",
       });
       const custom =
         r.level === 1 ? settings?.reminderText1 : r.level === 2 ? settings?.reminderText2 : settings?.reminderText3;

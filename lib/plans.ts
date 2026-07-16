@@ -7,7 +7,7 @@ export type PlanId = "FREE" | "INDEP" | "STUDIO";
 
 export type Feature =
   | "branding" // logo + branding on documents
-  | "removeBranding" // remove "Propulsé par FacturZen"
+  | "removeBranding" // remove "Propulsé par Facty"
   | "reminders" // automatic payment reminders
   | "onlineSignature" // online quote signature
   | "deposits" // deposit invoicing
@@ -79,7 +79,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     name: "Studio",
     price: 49,
     tagline: "Pour une équipe qui facture à plusieurs.",
-    benefits: ["Tout Indépendant", "Export comptable (CSV)", "Sans « Propulsé par FacturZen »", "Multi-utilisateurs (bientôt)"],
+    benefits: ["Tout Indépendant", "Export comptable (CSV)", "Sans « Propulsé par Facty »", "Multi-utilisateurs (bientôt)"],
     features: { ...INDEP_FEATURES, csvExport: true, removeBranding: true },
     quotas: { invoicesPerMonth: Infinity },
     soon: ["multiUser", "api"],

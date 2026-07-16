@@ -9,7 +9,7 @@ const STEPS: { anchor: string; text: string }[] = [
   { anchor: "stats", text: "Le CA de Léa, en un coup d'œil — tout est cliquable." },
   {
     anchor: "overdue",
-    text: "Ces retards ? FacturZen relance tout seul — ouvrez-la pour voir la timeline.",
+    text: "Ces retards ? Facty relance tout seul — ouvrez-la pour voir la timeline.",
   },
   { anchor: "quote", text: "Un devis accepté devient une facture en un clic." },
 ];

@@ -105,7 +105,7 @@ export function Hero() {
                   <div className="relative h-96 overflow-hidden rounded-[1.5rem] border border-border p-2 before:absolute before:inset-0 before:bg-[repeating-linear-gradient(-45deg,var(--border),var(--border)_1px,transparent_1px,transparent_6px)] before:opacity-60" />
                 </div>
 
-                {/* Front card with FacturZen widget */}
+                {/* Front card with Facty widget */}
                 <div className="mx-auto w-80 translate-x-4 rounded-[2rem] border border-border bg-muted p-2 backdrop-blur-3xl [mask-image:linear-gradient(to_bottom,#000_55%,transparent_95%)] sm:translate-x-8">
                   <div className="space-y-2 overflow-hidden rounded-[1.5rem] border border-border bg-card p-2 shadow-xl">
                     <InvoiceWidget />
@@ -124,7 +124,7 @@ export function Hero() {
           <div className="flex flex-col items-center md:flex-row">
             <div className="inline md:max-w-44 md:border-r md:border-border md:pr-6">
               <p className="text-center text-sm text-muted-foreground md:text-end">
-                Ils facturent déjà avec FacturZen
+                Ils facturent déjà avec Facty
               </p>
             </div>
             <div className="relative w-full min-w-0 py-6 md:w-[calc(100%-11rem)]">

@@ -181,7 +181,7 @@ export function DashboardView({
           {d.latestReminder ? (
             <div className="mt-4">
               <p className="text-sm text-foreground">
-                FacturZen a relancé <span className="font-medium">{d.latestReminder.client}</span> il y a{" "}
+                Facty a relancé <span className="font-medium">{d.latestReminder.client}</span> il y a{" "}
                 {daysSince(d.latestReminder.sentAt)} jours — sans que {firstName} ait à écrire un seul mot.
               </p>
               <Link

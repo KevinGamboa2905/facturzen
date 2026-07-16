@@ -939,7 +939,7 @@ function DocumentPreview({
         ) : null}
 
         <div className="mt-auto pt-4 text-center text-[8px] text-neutral-300">
-          Propulsé par FacturZen
+          Propulsé par Facty
         </div>
       </div>
     </div>

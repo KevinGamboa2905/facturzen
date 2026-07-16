@@ -27,7 +27,7 @@ export type PdfInput = {
   };
   client: { name: string; address?: string | null; zip?: string | null; city?: string | null; country?: string | null } | null;
   lineItems: { label: string; description?: string | null; quantity: number; unitPrice: number; vatRate: number }[];
-  // Studio plan can drop the "Propulsé par FacturZen" footer (PROMPT 10 §3).
+  // Studio plan can drop the "Propulsé par Facty" footer (PROMPT 10 §3).
   removeBranding?: boolean;
 };
 
@@ -195,7 +195,7 @@ export async function generateDocumentPdf(input: PdfInput): Promise<Buffer> {
 
   // --- Footer ---
   if (!input.removeBranding) {
-    doc.font("Helvetica").fontSize(8).fillColor("#b8b8b8").text("Propulsé par FacturZen", M, doc.page.height - 70, {
+    doc.font("Helvetica").fontSize(8).fillColor("#b8b8b8").text("Propulsé par Facty", M, doc.page.height - 70, {
       width: contentW,
       align: "center",
     });

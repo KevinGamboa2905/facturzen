@@ -18,7 +18,7 @@ export function InvoiceMockup() {
     <div
       className="w-full rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-6"
       role="img"
-      aria-label="Aperçu du builder de facture FacturZen"
+      aria-label="Aperçu du builder de facture Facty"
     >
       {/* Toolbar */}
       <div className="mb-4 flex items-center justify-between">

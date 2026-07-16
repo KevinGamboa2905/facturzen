@@ -16,7 +16,7 @@ export type SendEmailInput = {
   isDemo?: boolean;
 };
 
-// The one place any email leaves FacturZen. It never throws — a failed email
+// The one place any email leaves Facty. It never throws — a failed email
 // must never break the business action that triggered it (§1). Returns whether
 // the send was real or simulated so the UI can be honest about it.
 export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
