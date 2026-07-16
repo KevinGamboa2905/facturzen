@@ -34,13 +34,27 @@ export function DemoTour() {
     return () => clearTimeout(t);
   }, [pathname]);
 
-  // Measure the current anchor (DOM read → must happen after paint).
+  // Measure the current anchor (DOM read → must happen after paint). Re-measured
+  // on the next frame (the demo sandbox may still be laying out on first load)
+  // and on resize/scroll so the spotlight stays aligned. If the anchor never
+  // appears, `rect` stays null and the tooltip uses its bottom-centered fallback.
   useEffect(() => {
     if (!active) return;
-    const el = document.querySelector<HTMLElement>(`[data-tour="${STEPS[step].anchor}"]`);
-    const r = el?.getBoundingClientRect();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring the DOM
-    setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
+    let raf = 0;
+    const measure = () => {
+      const el = document.querySelector<HTMLElement>(`[data-tour="${STEPS[step].anchor}"]`);
+      const r = el?.getBoundingClientRect();
+      setRect(r ? { top: r.top, left: r.left, width: r.width, height: r.height } : null);
+    };
+    measure();
+    raf = requestAnimationFrame(measure);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
   }, [active, step]);
 
   function finish() {
