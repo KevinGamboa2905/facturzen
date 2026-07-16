@@ -11,8 +11,8 @@ type InvoiceFull = Prisma.InvoiceGetPayload<{ include: { lineItems: true; client
 type QuoteFull = Prisma.QuoteGetPayload<{ include: { lineItems: true; client: true } }>;
 type DocFull = InvoiceFull | QuoteFull;
 
-async function renderPdf(kind: "FAC" | "DEV", doc: DocFull, user: User): Promise<Response> {
-  const pdf = await generateDocumentPdf({
+function buildPdfInput(kind: "FAC" | "DEV", doc: DocFull, user: User) {
+  return {
     kind,
     number: doc.number,
     issueDate: doc.issueDate,
@@ -49,7 +49,25 @@ async function renderPdf(kind: "FAC" | "DEV", doc: DocFull, user: User): Promise
         unitPrice: li.unitPrice,
         vatRate: li.vatRate,
       })),
-  });
+  };
+}
+
+// PDF as a Buffer, for email attachments (§1). No auth/workspace check — callers
+// (email dispatch) already own the document; keyed by id.
+export async function documentPdfBuffer(kind: "FAC" | "DEV", id: string): Promise<{ buffer: Buffer; filename: string } | null> {
+  const doc =
+    kind === "FAC"
+      ? await prisma.invoice.findUnique({ where: { id }, include: { lineItems: true, client: true } })
+      : await prisma.quote.findUnique({ where: { id }, include: { lineItems: true, client: true } });
+  if (!doc) return null;
+  const user = await prisma.user.findUnique({ where: { id: doc.userId } });
+  if (!user) return null;
+  const buffer = await generateDocumentPdf(buildPdfInput(kind, doc, user));
+  return { buffer, filename: `${doc.number}.pdf` };
+}
+
+async function renderPdf(kind: "FAC" | "DEV", doc: DocFull, user: User): Promise<Response> {
+  const pdf = await generateDocumentPdf(buildPdfInput(kind, doc, user));
 
   return new Response(new Uint8Array(pdf), {
     headers: {

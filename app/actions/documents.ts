@@ -14,6 +14,7 @@ import {
   reminderEmailCopy,
   TONE_BY_LEVEL,
 } from "@/lib/app/events";
+import { dispatchDocumentSent, dispatchInvoicePaid } from "@/lib/email/dispatch";
 
 export type DocKind = "FAC" | "DEV";
 
@@ -178,7 +179,7 @@ function revalidateLists() {
 }
 
 export type SendResult =
-  | { ok: true }
+  | { ok: true; simulated?: boolean }
   | { ok: false }
   | { ok: false; reason: "LIMIT"; sent: number; limit: number; monthLabel: string };
 
@@ -188,6 +189,7 @@ export async function sendDocument(kind: DocKind, id: string): Promise<SendResul
   const ws = await getWorkspace();
   if (!ws) return { ok: false };
 
+  let emailResult: { simulated: boolean } = { simulated: true };
   if (kind === "FAC") {
     const inv = await prisma.invoice.findUnique({
       where: { id },
@@ -218,14 +220,16 @@ export async function sendDocument(kind: DocKind, id: string): Promise<SendResul
       data: { status: "SENT", sentAt: inv.sentAt ?? new Date() },
     });
     await recordSendEvent("FAC", id);
+    emailResult = await dispatchDocumentSent("FAC", id);
   } else {
     const q = await prisma.quote.findUnique({ where: { id }, select: { userId: true } });
     if (!q || q.userId !== ws.userId) return { ok: false };
     await prisma.quote.update({ where: { id }, data: { status: "SENT" } });
     await recordSendEvent("DEV", id);
+    emailResult = await dispatchDocumentSent("DEV", id);
   }
   revalidateLists();
-  return { ok: true };
+  return { ok: true, simulated: emailResult.simulated };
 }
 
 // Record a SENT timeline event with the email copy as expedited.
@@ -298,6 +302,8 @@ export async function markFullyPaid(id: string): Promise<{ ok: boolean }> {
       await prisma.reminder.deleteMany({ where: { invoiceId: parent.id, sentAt: null } });
     }
   }
+  // Thank-you + receipt to the client (simulated in demo / without Resend).
+  await dispatchInvoicePaid(id);
   revalidateLists();
   return { ok: true };
 }

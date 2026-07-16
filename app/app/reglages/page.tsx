@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { flags, EMAIL_FROM } from "@/lib/env";
 import { getWorkspace } from "@/lib/workspace";
 import { isStorageConfigured } from "@/lib/storage";
 import { stripeConfigured } from "@/lib/stripe";
@@ -49,6 +50,8 @@ export default async function AppSettingsPage({
     <SettingsView
       initial={initial}
       uploadsEnabled={isStorageConfigured()}
+      emailConfigured={flags.email}
+      emailFrom={EMAIL_FROM}
       initialTab={initialTab}
     />
   );

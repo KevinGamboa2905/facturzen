@@ -56,6 +56,9 @@ const serverSchema = z.object({
   AUTH_GOOGLE_ID: optionalString(),
   AUTH_GOOGLE_SECRET: optionalString(),
   RESEND_API_KEY: optionalString(),
+  // Sender identity for Resend. Defaults to Resend's test address so the test
+  // mode works out of the box; set a verified domain sender in prod.
+  EMAIL_FROM: optionalString(),
   STRIPE_SECRET_KEY: optionalString(),
   STRIPE_WEBHOOK_SECRET: optionalString(),
   STRIPE_PRICE_INDEP: optionalString(),
@@ -144,6 +147,10 @@ export const flags = {
 export const nodeEnv = process.env.NODE_ENV ?? "development";
 export const isProduction = nodeEnv === "production";
 export const isDevelopment = nodeEnv === "development";
+
+// Resend sender. Falls back to Resend's test sender so test mode works out of
+// the box (deliverable only to your own account's verified addresses).
+export const EMAIL_FROM = serverParsed?.EMAIL_FROM ?? "FacturZen <onboarding@resend.dev>";
 
 // Build an absolute URL from the configured app origin. Use this everywhere an
 // email, notification, or OG link needs a full URL — never hardcode a host.

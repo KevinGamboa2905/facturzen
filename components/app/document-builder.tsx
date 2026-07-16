@@ -247,7 +247,13 @@ export function DocumentBuilder({
       const res = await sendDocument(kind, docId);
       setSendOpen(false);
       if (res.ok) {
-        toast(`${isQuote ? "Devis envoyé" : "Facture envoyée"} à ${clientName} ✓`);
+        const noun = isQuote ? "Devis" : "Facture";
+        const accord = isQuote ? "" : "e";
+        toast(
+          "simulated" in res && res.simulated
+            ? `${noun} marqué${accord} envoyé${accord} — email simulé (Resend non configuré)`
+            : `${noun} envoyé${accord} à ${clientName} ✓`,
+        );
         router.refresh();
       } else if ("reason" in res && res.reason === "LIMIT") {
         // Draft is untouched — only the send is blocked; nudge to upgrade.

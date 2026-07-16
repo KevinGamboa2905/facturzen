@@ -20,6 +20,7 @@ base PostgreSQL, l'auth Google, les PDF et les crons.
 | `AUTH_GOOGLE_ID` | ➖ | Google Cloud Console (§4) — sinon connexion « bientôt » |
 | `AUTH_GOOGLE_SECRET` | ➖ | Google Cloud Console (§4) — sinon connexion « bientôt » |
 | `RESEND_API_KEY` | ➖ | [resend.com/api-keys](https://resend.com/api-keys) — sinon emails loggés |
+| `EMAIL_FROM` | ➖ | Expéditeur Resend, ex. `FacturZen <notifications@votre-domaine.ch>` (défaut : test resend.dev) |
 | `STRIPE_SECRET_KEY` | ➖ | [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys) — sinon abonnement « bientôt » |
 | `BLOB_READ_WRITE_TOKEN` | ➖ | Vercel → Storage → Blob (§6) — sinon upload logo désactivé |
 | `ANTHROPIC_API_KEY` | ➖ | [console.anthropic.com](https://console.anthropic.com/settings/keys) — sinon devis IA masqué |

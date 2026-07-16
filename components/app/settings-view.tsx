@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Banknote, CreditCard, Loader2 } from "lucide-react";
+import { AlertTriangle, Banknote, CreditCard, Loader2, MailCheck, MailWarning } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -77,10 +77,14 @@ const nativeSelect =
 export function SettingsView({
   initial,
   uploadsEnabled,
+  emailConfigured,
+  emailFrom,
   initialTab = "profil",
 }: {
   initial: SettingsData;
   uploadsEnabled: boolean;
+  emailConfigured: boolean;
+  emailFrom: string;
   initialTab?: TabId;
 }) {
   const [tab, setTab] = useState<TabId>(initialTab);
@@ -114,7 +118,14 @@ export function SettingsView({
           <ProfileTab initial={initial} uploadsEnabled={uploadsEnabled} canBranding={canBranding} />
         )}
         {tab === "facturation" && <BillingTab initial={initial} />}
-        {tab === "relances" && <RemindersTab initial={initial} canReminders={canReminders} />}
+        {tab === "relances" && (
+          <RemindersTab
+            initial={initial}
+            canReminders={canReminders}
+            emailConfigured={emailConfigured}
+            emailFrom={emailFrom}
+          />
+        )}
         {tab === "paiements" && <PaymentsTab initial={initial} />}
         {tab === "abonnement" && <AbonnementTab initial={initial} />}
       </div>
@@ -407,7 +418,17 @@ const REMINDER_HINTS = [
   "Relance formelle — dernier rappel avant recouvrement.",
 ];
 
-function RemindersTab({ initial, canReminders }: { initial: SettingsData; canReminders: boolean }) {
+function RemindersTab({
+  initial,
+  canReminders,
+  emailConfigured,
+  emailFrom,
+}: {
+  initial: SettingsData;
+  canReminders: boolean;
+  emailConfigured: boolean;
+  emailFrom: string;
+}) {
   const { toast } = useToast();
   const router = useRouter();
   const [pending, start] = useTransition();
@@ -449,6 +470,17 @@ function RemindersTab({ initial, canReminders }: { initial: SettingsData; canRem
 
   const form = (
     <form onSubmit={submit} className="space-y-4">
+      {emailConfigured ? (
+        <p className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-xs text-success">
+          <MailCheck className="size-3.5 shrink-0" />
+          Emails envoyés via Resend depuis {emailFrom}
+        </p>
+      ) : (
+        <p className="flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          <MailWarning className="size-3.5 shrink-0" />
+          Envoi d&apos;emails non configuré — les relances sont simulées (loggées, aucun email réel).
+        </p>
+      )}
       <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
         Variables disponibles : <code>{"{client}"}</code> <code>{"{numero}"}</code>{" "}
         <code>{"{montant}"}</code> <code>{"{jours}"}</code>

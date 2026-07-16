@@ -40,6 +40,8 @@ function labelFor(e: TimelineEvent): string {
       const tone = e.payload?.tone ? TONE_LABEL[e.payload.tone] : "";
       return `Relance ${e.payload?.level ?? ""} envoyée${tone ? ` (${tone})` : ""}`;
     }
+    case "DUE_SOON":
+      return "Rappel d'échéance envoyé";
     case "DEPOSIT_PAID":
       return "Acompte encaissé";
     case "PAID":
@@ -65,6 +67,8 @@ function iconFor(type: string) {
       return Eye;
     case "REMINDER_SENT":
       return BellRing;
+    case "DUE_SOON":
+      return Clock;
     case "DEPOSIT_PAID":
       return Wallet;
     case "PAID":

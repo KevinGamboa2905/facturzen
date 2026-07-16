@@ -32,5 +32,8 @@ export default async function DemoSettingsPage() {
     stripeNeedsAttention: false,
   });
 
-  return <SettingsView initial={initial} uploadsEnabled={isStorageConfigured()} />;
+  // Demo never sends real email → always show the simulated state.
+  return (
+    <SettingsView initial={initial} uploadsEnabled={isStorageConfigured()} emailConfigured={false} emailFrom="" />
+  );
 }

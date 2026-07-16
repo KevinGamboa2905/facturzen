@@ -6,6 +6,7 @@ export type EventType =
   | "SENT"
   | "VIEWED"
   | "REMINDER_SENT"
+  | "DUE_SOON"
   | "DEPOSIT_PAID"
   | "PAID"
   | "CONVERTED"
