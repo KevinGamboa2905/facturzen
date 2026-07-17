@@ -1,0 +1,95 @@
+import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import type Stripe from "stripe";
+
+import { stripe } from "@/lib/stripe";
+import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
+import { applyOnlinePayment } from "@/lib/app/payments";
+import { normalizePlan } from "@/lib/plans";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// Handles both the platform (subscriptions) and connected-account (invoice
+// payments via destination charges) events on one endpoint. Verifies signatures;
+// no-op cleanly when Stripe isn't configured.
+export async function POST(request: Request) {
+  if (!stripe || !env.STRIPE_WEBHOOK_SECRET) {
+    return NextResponse.json({ ok: false, error: "stripe not configured" }, { status: 400 });
+  }
+
+  const signature = (await headers()).get("stripe-signature") ?? "";
+  const body = await request.text();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(body, signature, env.STRIPE_WEBHOOK_SECRET);
+  } catch {
+    return NextResponse.json({ ok: false, error: "invalid signature" }, { status: 400 });
+  }
+
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      const kind = s.metadata?.kind;
+
+      if (kind === "subscription") {
+        const userId = s.metadata?.userId ?? s.client_reference_id ?? undefined;
+        if (userId) {
+          await prisma.user.update({
+            where: { id: userId },
+            data: {
+              plan: normalizePlan(s.metadata?.plan),
+              trialEndsAt: null, // now paid
+              stripeCustomerId: typeof s.customer === "string" ? s.customer : undefined,
+              stripeSubscriptionId: typeof s.subscription === "string" ? s.subscription : undefined,
+            },
+          });
+        }
+      } else if (kind === "invoice-payment") {
+        const invoiceId = s.metadata?.invoiceId ?? s.client_reference_id ?? undefined;
+        if (invoiceId) {
+          await applyOnlinePayment(invoiceId, s.amount_total ?? 0);
+          // TODO(prompt 4 automation): thank-you email + receipt, in-app notification
+          // "<client> a payé la facture <number> en ligne".
+        }
+      }
+      break;
+    }
+
+    case "customer.subscription.deleted": {
+      const sub = event.data.object as Stripe.Subscription;
+      const user = await prisma.user.findFirst({
+        where: { stripeSubscriptionId: sub.id },
+        select: { id: true },
+      });
+      if (user) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { plan: "FREE", stripeSubscriptionId: null },
+        });
+      }
+      break;
+    }
+
+    case "customer.subscription.updated": {
+      const sub = event.data.object as Stripe.Subscription;
+      if (sub.status === "canceled" || sub.status === "unpaid") {
+        const user = await prisma.user.findFirst({
+          where: { stripeSubscriptionId: sub.id },
+          select: { id: true },
+        });
+        if (user) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { plan: "FREE", stripeSubscriptionId: null },
+          });
+        }
+      }
+      break;
+    }
+  }
+
+  return NextResponse.json({ received: true });
+}

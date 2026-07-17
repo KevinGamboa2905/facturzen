@@ -1,57 +1,39 @@
-import Link from "next/link";
-import { CreditCard } from "lucide-react";
-
-import { ensureDemoWorkspace, getDemoData } from "@/lib/demo/session";
-import { LiquidGlassButton } from "@/components/ui/liquid-glass";
+import { prisma } from "@/lib/prisma";
+import { getWorkspace } from "@/lib/workspace";
+import { isStorageConfigured } from "@/lib/storage";
+import { stripeConfigured } from "@/lib/stripe";
+import { buildSettingsData } from "@/lib/app/settings";
+import { effectivePlan, trialDaysLeft, trialExpired, limit } from "@/lib/plans";
+import { sentInvoicesThisMonth } from "@/lib/app/usage";
+import { SettingsView } from "@/components/app/settings-view";
 
 export const dynamic = "force-dynamic";
 
+// Demo simulates a paid Indépendant account — no locks, no Stripe connect calls.
 export default async function DemoSettingsPage() {
-  const user = await ensureDemoWorkspace();
-  const data = user ? await getDemoData(user.id) : null;
-  if (!data) return null;
-  const u = data.user;
+  const ws = await getWorkspace();
+  if (!ws) return null;
+  const [user, settings, sentThisMonth] = await Promise.all([
+    prisma.user.findUnique({ where: { id: ws.userId } }),
+    prisma.settings.findUnique({ where: { userId: ws.userId } }),
+    sentInvoicesThisMonth(ws.userId),
+  ]);
+  if (!user) return null;
 
+  const initial = buildSettingsData(user, settings, {
+    effectivePlan: effectivePlan(user),
+    trialDaysLeft: trialDaysLeft(user),
+    trialExpired: trialExpired(user),
+    sentThisMonth,
+    invoiceLimit: limit(user, "invoicesPerMonth"),
+    stripeConfigured,
+    stripeConnected: false,
+    stripeChargesEnabled: false,
+    stripeNeedsAttention: false,
+  });
+
+  // Demo never sends real email → always show the simulated state.
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 py-8 sm:px-8">
-      <h1 className="text-2xl font-semibold tracking-tight">Réglages</h1>
-
-      <div className="mt-5 space-y-4">
-        <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="text-sm font-medium">Profil entreprise</h2>
-          <dl className="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-muted-foreground">Activité</dt>
-              <dd>{u.companyName}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">QR-IBAN</dt>
-              <dd className="tabular-nums">{u.iban}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">TVA</dt>
-              <dd>{u.vatNumber}</dd>
-            </div>
-            <div>
-              <dt className="text-muted-foreground">Délai de paiement</dt>
-              <dd>{u.paymentTermsDays} jours</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="rounded-xl border border-border bg-card p-5">
-          <div className="flex items-center gap-2">
-            <CreditCard className="size-4 text-muted-foreground" />
-            <h2 className="text-sm font-medium">Abonnement</h2>
-          </div>
-          <p className="mt-3 text-sm text-muted-foreground">
-            L&apos;abonnement se gère depuis un compte réel.
-          </p>
-          <LiquidGlassButton href="/connexion" className="mt-4 h-10 rounded-xl px-4 text-sm">
-            Créer mon compte
-          </LiquidGlassButton>
-        </section>
-      </div>
-    </div>
+    <SettingsView initial={initial} uploadsEnabled={isStorageConfigured()} emailConfigured={false} emailFrom="" />
   );
 }

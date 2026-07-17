@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { prisma } from "@/lib/prisma";
+import { dispatchQuoteAccepted } from "@/lib/email/dispatch";
 
 // Public, token-scoped: the client accepts by typing their name (simple signature).
 export async function acceptQuote(
@@ -23,6 +24,8 @@ export async function acceptQuote(
     where: { id: quote.id },
     data: { status: "ACCEPTED", signedAt: new Date(), signatureName: name },
   });
+  // Notify the freelancer their quote was accepted (simulated in demo / no key).
+  await dispatchQuoteAccepted(quote.id);
   revalidatePath(`/d/${token}`);
   return { ok: true };
 }

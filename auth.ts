@@ -3,19 +3,31 @@ import Google from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 
 import { prisma } from "@/lib/prisma";
+import { flags, isProduction } from "@/lib/env";
 
-// Auth.js (NextAuth v5). Google is the ONLY entry path (PROMPT 2 §1): no magic
-// link, no password, no form. Sessions are database-backed via the Prisma
-// adapter, so the `session` callback receives the full DB user.
+// Auth.js (NextAuth v5). Google is the primary entry path, but OPTIONAL at
+// deploy: the provider is only registered when both keys are present, so the
+// app boots and runs (landing + demo) with zero providers. Sessions are
+// database-backed via the Prisma adapter, so the `session` callback receives
+// the full DB user. (The dev-only shortcut sign-in lives in
+// app/api/dev-login — a Credentials provider can't persist a DB session.)
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "database" },
-  providers: [
-    Google({
-      // Reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET from env automatically.
-      allowDangerousEmailAccountLinking: true,
-    }),
-  ],
+  // Vercel sits behind a proxy: trust the forwarded host so callback URLs are
+  // built from the real deployment origin (also satisfied by AUTH_TRUST_HOST=true,
+  // which is set automatically on Vercel — we make it explicit here too).
+  trustHost: true,
+  // Secure, host-locked session cookie in production; relaxed over http in dev.
+  useSecureCookies: isProduction,
+  providers: flags.googleAuth
+    ? [
+        Google({
+          // Reads AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET from env automatically.
+          allowDangerousEmailAccountLinking: true,
+        }),
+      ]
+    : [],
   pages: {
     signIn: "/connexion",
     error: "/connexion", // OAuth errors surface on the sign-in page, never a raw error page.

@@ -1,15 +1,17 @@
 // FacturZen data model.
-// Dev: SQLite. Written to stay portable to PostgreSQL for prod (no SQLite-only
-// features; status/plan/currency stored as String since SQLite lacks enums —
-// allowed values are validated at the application layer with Zod).
-// Money is always stored in centimes (Int), never floats.
+// PostgreSQL everywhere (dev + prod) — one engine, no dev/prod drift.
+// status/plan/currency are stored as String (not native enums) so allowed
+// values are validated at the application layer with Zod and stay easy to
+// extend without a migration. Money is always stored in centimes (Int), never
+// floats; rates/quantities/percentages are Float; flags are Boolean; instants
+// are DateTime (timestamptz in Postgres). All types are Postgres-native.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -39,7 +41,23 @@ model User {
   defaultCurrency  String  @default("CHF") // CHF | EUR
   defaultVatRate   Float   @default(8.1)
   paymentTermsDays Int     @default(30)
-  plan             String  @default("FREE") // FREE | PRO
+
+  // Plans & billing (PROMPT 10). plan ∈ FREE | INDEP | STUDIO. Trials are
+  // internal (no card): trialEndsAt set for INDEP/STUDIO chosen at onboarding.
+  plan             String    @default("FREE")
+  planSelectedAt   DateTime?
+  billingCycleAnchor DateTime?
+  trialEndsAt      DateTime?
+  planBannerSeenAt DateTime? // existing users see the "choose a plan" nudge once
+
+  // Payments the user collects (PROMPT 10 §6).
+  accountHolder    String?  // bank account holder name (QR-facture creditor)
+  showBankDetails  Boolean  @default(true)
+  stripeAccountId  String?  // Stripe Connect (Express) — receive online payments
+
+  // Subscription billing (PROMPT 10 §4).
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
 
   // Onboarding / activation / demo (PROMPT 2 & 3)
   onboardingCompletedAt DateTime?
@@ -146,6 +164,7 @@ model Quote {
   client    Client?     @relation(fields: [clientId], references: [id], onDelete: Restrict)
   lineItems LineItem[]
   invoices  Invoice[]
+  events    DocumentEvent[]
 
   @@unique([userId, number])
   @@index([userId])
@@ -160,6 +179,7 @@ model Invoice {
   status      String    @default("DRAFT") // DRAFT | SENT | PAID | OVERDUE | CANCELLED
   issueDate   DateTime  @default(now())
   dueDate     DateTime
+  sentAt      DateTime? // first time it was sent — powers the monthly send quota
   paidAt      DateTime?
   currency    String    @default("CHF")
   publicToken String    @unique @default(cuid())
@@ -183,6 +203,7 @@ model Invoice {
   balances  Invoice[]  @relation("InvoiceDeposit")
   lineItems LineItem[]
   reminders Reminder[]
+  events    DocumentEvent[]
 
   @@unique([userId, number])
   @@index([userId])
@@ -204,6 +225,23 @@ model LineItem {
 
   @@index([quoteId])
   @@index([invoiceId])
+}
+
+// Timeline events for a document (PROMPT 11 §2). One row per lifecycle moment;
+// `payload` carries type-specific detail (e.g. reminder tone, sent email copy).
+model DocumentEvent {
+  id        String   @id @default(cuid())
+  invoiceId String?
+  quoteId   String?
+  type      String // CREATED | SENT | VIEWED | REMINDER_SENT | DEPOSIT_PAID | PAID | CONVERTED | CANCELLED | BALANCE_INVOICED
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  invoice Invoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  quote   Quote?   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([quoteId])
 }
 
 model Reminder {

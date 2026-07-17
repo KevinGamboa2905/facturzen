@@ -27,6 +27,7 @@ import {
 } from "@/app/actions/documents";
 import { ClientCreateModal } from "@/components/app/client-create-modal";
 import { DepositSelector, type DepositChoice } from "@/components/app/deposit-selector";
+import { useUpgrade } from "@/components/app/upgrade-modal";
 
 type ClientLite = { id: string; name: string; city: string | null; email: string | null };
 type ServiceLite = {
@@ -115,6 +116,7 @@ export function DocumentBuilder({
   const [pending, startTransition] = useTransition();
   const router = useRouter();
   const { toast } = useToast();
+  const upgrade = useUpgrade();
   const [sendOpen, setSendOpen] = useState(false);
   const [emailBody, setEmailBody] = useState("");
   const [convertConfirm, setConvertConfirm] = useState(false);
@@ -245,8 +247,19 @@ export function DocumentBuilder({
       const res = await sendDocument(kind, docId);
       setSendOpen(false);
       if (res.ok) {
-        toast(`${isQuote ? "Devis envoyé" : "Facture envoyée"} à ${clientName} ✓`);
+        const noun = isQuote ? "Devis" : "Facture";
+        const accord = isQuote ? "" : "e";
+        toast(
+          "simulated" in res && res.simulated
+            ? `${noun} marqué${accord} envoyé${accord} — email simulé (Resend non configuré)`
+            : `${noun} envoyé${accord} à ${clientName} ✓`,
+        );
         router.refresh();
+      } else if ("reason" in res && res.reason === "LIMIT") {
+        // Draft is untouched — only the send is blocked; nudge to upgrade.
+        upgrade.open(
+          `Vous avez envoyé vos ${res.limit} factures gratuites de ${res.monthLabel}. Passez à Indépendant pour des factures illimitées.`,
+        );
       } else toast("L'envoi a échoué.", "error");
     });
   }
@@ -300,7 +313,7 @@ export function DocumentBuilder({
         <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">
-              {isQuote ? "Nouveau devis" : "Nouvelle facture"}
+              {isQuote ? "Modifier le devis" : "Modifier la facture"}
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground tabular-nums">{number}</p>
           </div>
@@ -926,7 +939,7 @@ function DocumentPreview({
         ) : null}
 
         <div className="mt-auto pt-4 text-center text-[8px] text-neutral-300">
-          Propulsé par FacturZen
+          Propulsé par Facty
         </div>
       </div>
     </div>

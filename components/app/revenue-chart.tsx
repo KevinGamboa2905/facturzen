@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 
 import { formatAmount } from "@/lib/money";
@@ -47,17 +48,32 @@ function Chart({ data }: { data: Point[] }) {
   );
 }
 
+// Render a SINGLE chart sized to a visible container. The previous approach
+// mounted two charts (one hidden via `sm:hidden`/`hidden sm:block`); the hidden
+// one had 0×0 dimensions, which spammed Recharts' "width(0) and height(0)"
+// warning. We mount only after the container is measurable, and pick the
+// data/height from the viewport — so exactly one, correctly-sized chart exists.
 export function RevenueChart({ data }: { data: Point[] }) {
+  const [mounted, setMounted] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const apply = () => setIsDesktop(mq.matches);
+    // Client-only viewport detection at mount — measuring, not a cascading render.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    apply();
+    setMounted(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  const height = isDesktop ? 240 : 200;
+
   return (
-    <>
-      {/* Desktop: 12 months */}
-      <div className="hidden h-[240px] w-full sm:block">
-        <Chart data={data} />
-      </div>
-      {/* Mobile: last 6 months, simplified */}
-      <div className="h-[200px] w-full sm:hidden">
-        <Chart data={data.slice(-6)} />
-      </div>
-    </>
+    <div style={{ height }} className="w-full">
+      {mounted ? <Chart data={isDesktop ? data : data.slice(-6)} /> : null}
+    </div>
   );
 }

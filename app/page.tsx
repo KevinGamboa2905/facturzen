@@ -13,20 +13,20 @@ import { benefits, pains, plans, steps } from "@/lib/marketing";
 export const metadata: Metadata = {
   title: "Logiciel de facturation pour indépendants suisses — QR-facture & devis",
   description:
-    "FacturZen crée vos devis et factures avec QR-facture suisse et relances automatiques. La facturation pensée pour l'indépendant suisse, payé à temps.",
+    "Facty crée vos devis et factures avec QR-facture suisse et relances automatiques. La facturation pensée pour l'indépendant suisse, payé à temps.",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "fr_CH",
     url: "/",
-    siteName: "FacturZen",
-    title: "FacturZen — facturation & QR-facture pour indépendants suisses",
+    siteName: "Facty",
+    title: "Facty — facturation & QR-facture pour indépendants suisses",
     description:
       "Devis, factures PDF et QR-facture suisse avec relances automatiques. Pensé pour les indépendants, pas pour les comptables.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "FacturZen — facturation & QR-facture pour indépendants suisses",
+    title: "Facty — facturation & QR-facture pour indépendants suisses",
     description:
       "Devis, factures et QR-facture suisse avec relances automatiques. Facturez en 2 minutes, soyez payé à temps.",
   },
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
 const softwareJsonLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "FacturZen",
+  name: "Facty",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   description:

@@ -26,7 +26,7 @@ export const benefits: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Bell,
     title: "Relances qui travaillent pour vous",
-    body: "3 niveaux automatiques, polis mais fermes. Vous restez le gentil, FacturZen fait le méchant.",
+    body: "3 niveaux automatiques, polis mais fermes. Vous restez le gentil, Facty fait le méchant.",
   },
   {
     icon: QrCode,
@@ -109,12 +109,12 @@ export const faq: { question: string; answer: string }[] = [
   {
     question: "Comment la TVA suisse est-elle gérée ?",
     answer:
-      "Vous définissez votre taux de TVA par défaut et vous pouvez l'ajuster ligne par ligne. FacturZen calcule le total hors taxe, la TVA par taux et le total TTC, et fait figurer votre numéro de TVA sur les documents.",
+      "Vous définissez votre taux de TVA par défaut et vous pouvez l'ajuster ligne par ligne. Facty calcule le total hors taxe, la TVA par taux et le total TTC, et fait figurer votre numéro de TVA sur les documents.",
   },
   {
     question: "Puis-je migrer mes factures depuis Excel ou Word ?",
     answer:
-      "Vous n'avez rien à importer pour commencer. Vous créez vos clients et vos prestations une première fois, puis vous les réutilisez. Vos anciens documents restent chez vous ; FacturZen prend le relais à partir de votre prochaine facture.",
+      "Vous n'avez rien à importer pour commencer. Vous créez vos clients et vos prestations une première fois, puis vous les réutilisez. Vos anciens documents restent chez vous ; Facty prend le relais à partir de votre prochaine facture.",
   },
   {
     question: "Où sont hébergées mes données et sont-elles en sécurité ?",

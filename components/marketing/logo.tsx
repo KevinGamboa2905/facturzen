@@ -10,7 +10,7 @@ export function Logo({ className }: { className?: string }) {
         <ReceiptText className="size-5" aria-hidden="true" />
       </span>
       <span className="text-lg tracking-tight text-foreground">
-        Factur<span className="text-muted-foreground">Zen</span>
+        Fact<span className="text-muted-foreground">y</span>
       </span>
     </span>
   );

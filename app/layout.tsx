@@ -23,11 +23,11 @@ const playfair = Playfair_Display({
 export const metadata: Metadata = {
   metadataBase: new URL("https://facturzen.ch"),
   title: {
-    default: "FacturZen",
-    template: "%s | FacturZen",
+    default: "Facty",
+    template: "%s | Facty",
   },
   description:
-    "FacturZen — devis, factures PDF et QR-facture suisse avec relances automatiques, pour les indépendants.",
+    "Facty — devis, factures PDF et QR-facture suisse avec relances automatiques, pour les indépendants.",
 };
 
 export default function RootLayout({

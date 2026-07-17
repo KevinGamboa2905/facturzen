@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
 // Dedicated 1200×630 OG image, self-contained (§7).
-export const alt = "FacturZen — facturation et QR-facture pour indépendants suisses";
+export const alt = "Facty — facturation et QR-facture pour indépendants suisses";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -38,8 +38,8 @@ export default function OpengraphImage() {
             F
           </div>
           <div style={{ display: "flex", fontSize: "34px", fontWeight: 600 }}>
-            <span>Factur</span>
-            <span style={{ color: "#60A5FA" }}>Zen</span>
+            <span>Fact</span>
+            <span style={{ color: "#60A5FA" }}>y</span>
           </div>
         </div>
 
