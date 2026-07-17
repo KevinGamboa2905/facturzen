@@ -29,6 +29,8 @@ export type PdfInput = {
   lineItems: { label: string; description?: string | null; quantity: number; unitPrice: number; vatRate: number }[];
   // Studio plan can drop the "Propulsé par Facty" footer (PROMPT 10 §3).
   removeBranding?: boolean;
+  // Receipt mode (PROMPT 17 §1): stamp "PAYÉE / acquittée", omit the QR slip.
+  receipt?: boolean;
 };
 
 const fmtDate = (d?: Date | null) => (d ? new Intl.DateTimeFormat("fr-CH").format(d) : "—");
@@ -76,6 +78,12 @@ export async function generateDocumentPdf(input: PdfInput): Promise<Buffer> {
   const isDepositInvoice = isInvoice && !!input.depositPercent && totals.deposit > 0;
   if (isDepositInvoice) {
     doc.font("Helvetica-Bold").fontSize(9).fillColor(ink).text("Facture d'acompte", M, M + 62, {
+      width: contentW,
+      align: "right",
+    });
+  }
+  if (input.receipt) {
+    doc.font("Helvetica-Bold").fontSize(11).fillColor("#15803d").text("PAYÉE — Facture acquittée", M, M + 74, {
       width: contentW,
       align: "right",
     });
@@ -201,9 +209,9 @@ export async function generateDocumentPdf(input: PdfInput): Promise<Buffer> {
     });
   }
 
-  // --- Swiss QR-bill (CHF invoices with a valid IBAN) ---
+  // --- Swiss QR-bill (CHF invoices with a valid IBAN) — not on a paid receipt ---
   const iban = input.company.iban ?? "";
-  if (isInvoice && cur === "CHF" && iban && isIBANValid(iban)) {
+  if (isInvoice && !input.receipt && cur === "CHF" && iban && isIBANValid(iban)) {
     const data: {
       currency: "CHF";
       amount: number;

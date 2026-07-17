@@ -53,17 +53,28 @@ function buildPdfInput(kind: "FAC" | "DEV", doc: DocFull, user: User) {
 }
 
 // PDF as a Buffer, for email attachments (§1). No auth/workspace check — callers
-// (email dispatch) already own the document; keyed by id.
-export async function documentPdfBuffer(kind: "FAC" | "DEV", id: string): Promise<{ buffer: Buffer; filename: string } | null> {
-  const doc =
-    kind === "FAC"
-      ? await prisma.invoice.findUnique({ where: { id }, include: { lineItems: true, client: true } })
-      : await prisma.quote.findUnique({ where: { id }, include: { lineItems: true, client: true } });
-  if (!doc) return null;
-  const user = await prisma.user.findUnique({ where: { id: doc.userId } });
-  if (!user) return null;
-  const buffer = await generateDocumentPdf(buildPdfInput(kind, doc, user));
-  return { buffer, filename: `${doc.number}.pdf` };
+// (email dispatch) already own the document; keyed by id. Resilient: any render
+// error returns null so the email still goes out (without the attachment).
+export async function documentPdfBuffer(
+  kind: "FAC" | "DEV",
+  id: string,
+  opts?: { receipt?: boolean },
+): Promise<{ buffer: Buffer; filename: string } | null> {
+  try {
+    const doc =
+      kind === "FAC"
+        ? await prisma.invoice.findUnique({ where: { id }, include: { lineItems: true, client: true } })
+        : await prisma.quote.findUnique({ where: { id }, include: { lineItems: true, client: true } });
+    if (!doc) return null;
+    const user = await prisma.user.findUnique({ where: { id: doc.userId } });
+    if (!user) return null;
+    const buffer = await generateDocumentPdf({ ...buildPdfInput(kind, doc, user), receipt: opts?.receipt });
+    const filename = opts?.receipt ? `Recu-${doc.number}.pdf` : `${doc.number}.pdf`;
+    return { buffer, filename };
+  } catch (e) {
+    console.error(`[pdf:error] ${kind} ${id}`, e);
+    return null;
+  }
 }
 
 async function renderPdf(kind: "FAC" | "DEV", doc: DocFull, user: User): Promise<Response> {

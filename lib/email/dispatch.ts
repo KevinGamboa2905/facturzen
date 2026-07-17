@@ -6,6 +6,7 @@ import { formatAmount } from "@/lib/money";
 import { absoluteUrl } from "@/lib/env";
 import { documentPdfBuffer } from "@/lib/pdf/response";
 import { reminderEmailCopy } from "@/lib/app/event-types";
+import { recordEvent } from "@/lib/app/events";
 import { sendEmail, type SendResult } from "@/lib/email/send";
 import {
   documentSentEmail,
@@ -47,6 +48,7 @@ export async function dispatchDocumentSent(kind: "FAC" | "DEV", id: string): Pro
     ibanNote: kind === "FAC" && doc.user.iban ? `Coordonnées de paiement : IBAN ${doc.user.iban}.` : null,
   });
   const pdf = await documentPdfBuffer(kind, id);
+  if (!pdf) await recordEvent(kind === "FAC" ? { invoiceId: id } : { quoteId: id }, "SENT", { emailNoPdf: true });
   return sendEmail({
     to: doc.client.email,
     subject: content.subject,
@@ -84,6 +86,7 @@ export async function dispatchReminder(invoiceId: string, level: number, bodyTex
     dueLine: `Échéance dépassée le ${frDate(inv.dueDate)}`,
   });
   const pdf = await documentPdfBuffer("FAC", invoiceId);
+  if (!pdf) await recordEvent({ invoiceId }, "SENT", { emailNoPdf: true });
   return sendEmail({
     to: inv.client.email,
     subject: content.subject,
@@ -164,7 +167,8 @@ export async function dispatchInvoicePaid(invoiceId: string): Promise<SendResult
     number: inv.number,
     amount,
   });
-  const pdf = await documentPdfBuffer("FAC", invoiceId);
+  const pdf = await documentPdfBuffer("FAC", invoiceId, { receipt: true }); // acquittée
+  if (!pdf) await recordEvent({ invoiceId }, "SENT", { emailNoPdf: true });
   return sendEmail({
     to: inv.client.email,
     subject: content.subject,
