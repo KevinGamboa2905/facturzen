@@ -20,7 +20,7 @@ import { disableReminder } from "@/app/actions/documents";
 export type TimelineEvent = {
   id: string;
   type: string;
-  payload: { subject?: string; body?: string; level?: number; tone?: Tone; invoiceNumber?: string } | null;
+  payload: { subject?: string; body?: string; level?: number; tone?: Tone; invoiceNumber?: string; online?: boolean } | null;
   createdAt: string;
 };
 
@@ -43,9 +43,9 @@ function labelFor(e: TimelineEvent): string {
     case "DUE_SOON":
       return "Rappel d'échéance envoyé";
     case "DEPOSIT_PAID":
-      return "Acompte encaissé";
+      return e.payload?.online ? "Acompte payé en ligne (Stripe)" : "Acompte encaissé";
     case "PAID":
-      return "Payée";
+      return e.payload?.online ? "Payée en ligne (Stripe)" : "Payée";
     case "CONVERTED":
       return `Convertie${e.payload?.invoiceNumber ? ` en ${e.payload.invoiceNumber}` : ""}`;
     case "BALANCE_INVOICED":

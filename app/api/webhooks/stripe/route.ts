@@ -6,6 +6,8 @@ import { stripe } from "@/lib/stripe";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { applyOnlinePayment } from "@/lib/app/payments";
+import { recordEvent } from "@/lib/app/events";
+import { dispatchInvoicePaid } from "@/lib/email/dispatch";
 import { normalizePlan } from "@/lib/plans";
 
 export const runtime = "nodejs";
@@ -50,9 +52,25 @@ export async function POST(request: Request) {
       } else if (kind === "invoice-payment") {
         const invoiceId = s.metadata?.invoiceId ?? s.client_reference_id ?? undefined;
         if (invoiceId) {
-          await applyOnlinePayment(invoiceId, s.amount_total ?? 0);
-          // TODO(prompt 4 automation): thank-you email + receipt, in-app notification
-          // "<client> a payé la facture <number> en ligne".
+          // Idempotent: skip if this exact Stripe event was already applied
+          // (replays / retries must not double-count — PROMPT 17 §3).
+          const already = await prisma.documentEvent.findFirst({
+            where: { invoiceId, payload: { path: ["stripeEvent"], equals: event.id } },
+            select: { id: true },
+          });
+          if (!already) {
+            await applyOnlinePayment(invoiceId, s.amount_total ?? 0);
+            const inv = await prisma.invoice.findUnique({ where: { id: invoiceId }, select: { status: true } });
+            const fullyPaid = inv?.status === "PAID";
+            // Timeline: "payée en ligne via Stripe" (surfaces to the user).
+            await recordEvent({ invoiceId }, fullyPaid ? "PAID" : "DEPOSIT_PAID", {
+              online: true,
+              via: "stripe",
+              stripeEvent: event.id,
+            });
+            // Receipt email to the client once the invoice is fully settled.
+            if (fullyPaid) await dispatchInvoicePaid(invoiceId);
+          }
         }
       }
       break;

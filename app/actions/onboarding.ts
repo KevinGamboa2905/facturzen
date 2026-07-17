@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getWorkspace } from "@/lib/workspace";
 import { addStarterServices } from "@/app/actions/services";
+import { dispatchWelcome } from "@/lib/email/dispatch";
 import { DEFAULT_PAYMENT_TERMS, DEFAULT_VAT_RATE } from "@/lib/profile-options";
 import { normalizePlan } from "@/lib/plans";
 
@@ -96,7 +97,7 @@ export async function completeOnboarding(): Promise<Ok> {
   if (!ws) return { ok: false };
   const user = await prisma.user.findUnique({
     where: { id: ws.userId },
-    select: { onboardingCompletedAt: true, activityType: true },
+    select: { onboardingCompletedAt: true, activityType: true, welcomeEmailSentAt: true },
   });
   if (!user) return { ok: false };
 
@@ -108,6 +109,16 @@ export async function completeOnboarding(): Promise<Ok> {
     const count = await prisma.service.count({ where: { userId: ws.userId } });
     if (count === 0) await addStarterServices(user.activityType ?? undefined);
   }
+
+  // Welcome email — exactly once, at the end of onboarding (not on raw sign-in).
+  if (!user.welcomeEmailSentAt) {
+    await prisma.user.update({
+      where: { id: ws.userId },
+      data: { welcomeEmailSentAt: new Date() },
+    });
+    await dispatchWelcome(ws.userId);
+  }
+
   revalidatePath("/app");
   return { ok: true };
 }

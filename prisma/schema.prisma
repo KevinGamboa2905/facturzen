@@ -61,6 +61,7 @@ model User {
 
   // Onboarding / activation / demo (PROMPT 2 & 3)
   onboardingCompletedAt DateTime?
+  welcomeEmailSentAt    DateTime? // welcome email sent once, at onboarding end (PROMPT 16)
   checklistDismissedAt  DateTime?
   isDemo                Boolean   @default(false)
   demoToken             String?   @unique // cookie-bound sandbox key for /demo
@@ -154,6 +155,8 @@ model Quote {
   depositPercent Float?
   signedAt      DateTime?
   signatureName String?
+  signatureMeta Json?     // { ip, userAgent } captured at online signing (PROMPT 17 §4)
+  declineReason String?   // optional reason when the client declines
   convertedInvoiceId String? // set once converted → no double conversion (PROMPT 6)
   publicToken   String    @unique @default(cuid())
 
