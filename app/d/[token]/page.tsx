@@ -23,10 +23,16 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
   const u = quote.user;
   await recordViewOncePerDay({ quoteId: quote.id });
   const canAct = ["SENT", "DRAFT", "EXPIRED"].includes(quote.status);
+  const studio = u.companyName || "l'émetteur";
+  const isExpired = quote.validUntil ? quote.validUntil.getTime() < Date.now() : false;
 
   return (
     <div className="min-h-dvh bg-neutral-100 px-4 py-8 sm:py-14">
       <div className="mx-auto w-full max-w-2xl">
+        {u.logoUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={u.logoUrl} alt={u.companyName ?? "Émetteur"} className="mb-4 h-9 w-auto" />
+        )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <span className="text-sm font-medium text-neutral-600 tabular-nums">Devis {quote.number}</span>
           <a
@@ -57,8 +63,8 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
             <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">
               <CheckCircle2 className="size-5 shrink-0" />
               <p className="text-sm">
-                <span className="font-semibold">Devis accepté.</span> Signé par {quote.signatureName} le{" "}
-                {fmtDate(quote.signedAt)}. Merci — vous recevrez la suite par email.
+                <span className="font-semibold">Devis accepté ✓</span> Signé par {quote.signatureName} le{" "}
+                {fmtDate(quote.signedAt)}. {studio} vous recontacte rapidement.
               </p>
             </div>
           ) : quote.status === "DECLINED" ? (
@@ -66,8 +72,15 @@ export default async function PublicQuotePage({ params }: { params: Promise<{ to
               <XCircle className="size-5 shrink-0" />
               <p className="text-sm">Ce devis a été refusé.</p>
             </div>
+          ) : isExpired ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800">
+              <p className="text-sm">
+                <span className="font-semibold">Ce devis a expiré</span> le {fmtDate(quote.validUntil)}. Contactez{" "}
+                {studio} pour obtenir une nouvelle proposition.
+              </p>
+            </div>
           ) : canAct ? (
-            <QuoteActions token={token} />
+            <QuoteActions token={token} studio={studio} />
           ) : null}
         </div>
 

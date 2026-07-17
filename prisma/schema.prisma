@@ -155,6 +155,8 @@ model Quote {
   depositPercent Float?
   signedAt      DateTime?
   signatureName String?
+  signatureMeta Json?     // { ip, userAgent } captured at online signing (PROMPT 17 §4)
+  declineReason String?   // optional reason when the client declines
   convertedInvoiceId String? // set once converted → no double conversion (PROMPT 6)
   publicToken   String    @unique @default(cuid())
 
