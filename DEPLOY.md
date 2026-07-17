@@ -63,9 +63,13 @@ DATABASE_URL="<url prod>" npm run db:seed
 > ```
 > puis commite le dossier `prisma/migrations/` avant de déployer.
 >
-> Le build Vercel ne lance **jamais** de migration ; il exécute seulement
-> `prisma generate`. Les migrations s'appliquent manuellement via
-> `prisma migrate deploy` (commande ci-dessus).
+> Le build **Vercel** applique désormais les migrations automatiquement :
+> le script `vercel-build` exécute `prisma generate && prisma migrate deploy
+> && next build`. Plus besoin de lancer la commande manuelle après chaque
+> déploiement — elle ne sert qu'au tout premier setup (seed) ou en dépannage.
+> Si une migration échoue, le build échoue : la prod reste sur la version
+> précédente (comportement voulu). Le `npm run build` local, lui, ne migre
+> jamais rien.
 
 ---
 
