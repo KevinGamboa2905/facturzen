@@ -10,6 +10,7 @@ export type SendEmailInput = {
   to: string;
   subject: string;
   html: string;
+  text?: string; // plain-text alternative (deliverability + screen readers)
   replyTo?: string | null;
   attachments?: Attachment[];
   // Central demo guard: an isDemo workspace NEVER sends a real email (§2).
@@ -20,7 +21,7 @@ export type SendEmailInput = {
 // must never break the business action that triggered it (§1). Returns whether
 // the send was real or simulated so the UI can be honest about it.
 export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
-  const { to, subject, html, replyTo, attachments, isDemo } = input;
+  const { to, subject, html, text, replyTo, attachments, isDemo } = input;
 
   // Simulate when: demo session, or no Resend key configured. Same log shape.
   if (isDemo || !flags.email) {
@@ -38,6 +39,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendResult> {
       to,
       subject,
       html,
+      text,
       replyTo: replyTo ?? undefined,
       attachments: attachments?.map((a) => ({ filename: a.filename, content: a.content })),
     });

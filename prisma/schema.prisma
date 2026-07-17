@@ -61,6 +61,7 @@ model User {
 
   // Onboarding / activation / demo (PROMPT 2 & 3)
   onboardingCompletedAt DateTime?
+  welcomeEmailSentAt    DateTime? // welcome email sent once, at onboarding end (PROMPT 16)
   checklistDismissedAt  DateTime?
   isDemo                Boolean   @default(false)
   demoToken             String?   @unique // cookie-bound sandbox key for /demo
