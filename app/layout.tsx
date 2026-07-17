@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Figtree, Playfair_Display } from "next/font/google";
 import "./globals.css";
+import { env } from "@/lib/env";
 import { GlassFilter } from "@/components/ui/liquid-glass";
 
 // Primary UI family: Figtree — a clean, friendly geometric sans for all body/UI.
@@ -21,7 +22,7 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://facturzen.ch"),
+  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
   title: {
     default: "Facty",
     template: "%s | Facty",

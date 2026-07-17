@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = "https://facturzen.ch";
+import { env } from "@/lib/env";
+
+const BASE_URL = env.NEXT_PUBLIC_APP_URL;
 
 export default function robots(): MetadataRoute.Robots {
   return {
